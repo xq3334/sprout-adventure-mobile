@@ -1,6 +1,20 @@
 (() => {
   'use strict';
 
+  const SOUNDTRACKS = {
+    forest: { name: '森林 · Carefree', beat: .86, voice: 'sine', decay: 2.3, wind: 650,
+      melody: [72, null, 76, 79, 74, null, 76, null, 69, null, 72, 76, 74, null, 72, null], chords: [[48, 55, 64], [45, 52, 60]] },
+    treehouse: { name: '树屋 · 木音小步舞', beat: .38, voice: 'triangle', decay: .32, wind: 420,
+      melody: [74, 78, 81, null, 78, 74, 69, null, 71, 74, 78, null, 76, 73, 69, null, 67, 71, 74, null, 76, 74, 71, null, 69, 73, 76, 81, 78, 76, 74, null],
+      chords: [[50, 57, 66], [47, 54, 62], [43, 50, 59], [45, 52, 61]] },
+    clouds: { name: '云海 · 风铃长诗', beat: .92, voice: 'sine', decay: 3.2, wind: 1200,
+      melody: [79, null, 86, null, 83, 81, null, null, 78, null, 81, null, 86, null, 83, null, 76, null, 79, 83, null, 86, null, null, 74, null, 81, null, 78, null, 79, null],
+      chords: [[43, 50, 59], [50, 57, 66], [40, 47, 55], [48, 55, 62]] },
+    castle: { name: '古堡 · 月下钟声', beat: .64, voice: 'sine', decay: 2.4, wind: 260,
+      melody: [74, null, 81, 77, null, 76, 74, null, 70, null, 77, null, 81, 79, 77, null, 67, null, 74, 77, null, 79, 77, null, 69, null, 73, 76, 81, null, 73, null],
+      chords: [[38, 45, 53], [34, 41, 50], [31, 38, 46], [33, 40, 49]] }
+  };
+
   class CozyAudio {
     constructor() {
       this.context = null;
@@ -18,6 +32,27 @@
       this.musicStartedAt = 0;
       this.musicLoadStarted = false;
       this.musicFailed = false;
+      this.scene = 'forest';
+      this.soundtrack = SOUNDTRACKS.forest;
+      this.scenicUntil = 0;
+    }
+
+    setScene(scene) {
+      const nextScene = Object.hasOwn(SOUNDTRACKS, scene) ? scene : 'forest';
+      if (nextScene === this.scene) return;
+      this.releaseVoices();
+      this.scene = nextScene;
+      this.soundtrack = SOUNDTRACKS[nextScene];
+      this.beat = 0;
+      this.scenicUntil = 0;
+      this.lastEffects.clear();
+      if (this.context) {
+        this.nextBeat = this.context.currentTime + .3;
+        this.windFilter.frequency.setTargetAtTime(this.soundtrack.wind, this.context.currentTime, .8);
+      }
+      this.syncMusic();
+      if (nextScene === 'forest') this.loadMusic();
+      this.onMusicStatus?.();
     }
 
     async unlock() {
@@ -77,7 +112,8 @@
       wind.loop = true;
       const filter = audio.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = 650;
+      filter.frequency.value = this.soundtrack.wind;
+      this.windFilter = filter;
       wind.connect(filter);
       filter.connect(this.buses.nature);
       wind.start();
@@ -85,7 +121,7 @@
     }
 
     async loadMusic() {
-      if (this.musicLoadStarted || !this.context) return;
+      if (this.scene !== 'forest' || this.musicLoadStarted || !this.context) return;
       this.musicLoadStarted = true;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
@@ -93,7 +129,7 @@
         const response = await fetch('assets/carefree.mp3', { signal: controller.signal });
         if (!response.ok) throw new Error('Music unavailable');
         this.musicBuffer = await this.context.decodeAudioData(await response.arrayBuffer());
-        this.releaseVoices();
+        if (this.scene === 'forest') this.releaseVoices();
         this.syncMusic();
       } catch {
         this.musicFailed = true;
@@ -105,7 +141,7 @@
 
     syncMusic() {
       if (!this.context || !this.musicBuffer) return;
-      const shouldPlay = this.enabled && !this.paused && this.context.state === 'running';
+      const shouldPlay = this.scene === 'forest' && this.enabled && !this.paused && this.context.state === 'running';
       if (!shouldPlay && this.musicSource) {
         this.musicOffset = (this.musicOffset + this.context.currentTime - this.musicStartedAt) % this.musicBuffer.duration;
         this.musicSource.stop();
@@ -166,12 +202,12 @@
       }
     }
 
-    note(midi, when, duration, strength, category = 'music', endMidi = midi) {
+    note(midi, when, duration, strength, category = 'music', endMidi = midi, waveform = 'sine') {
       if (!this.context || this.voices.size >= 48) return;
       const oscillator = this.context.createOscillator();
       const gain = this.context.createGain();
       const frequency = value => 440 * 2 ** ((value - 69) / 12);
-      oscillator.type = 'sine';
+      oscillator.type = waveform;
       oscillator.frequency.setValueAtTime(frequency(midi), when);
       if (endMidi !== midi) oscillator.frequency.exponentialRampToValueAtTime(frequency(endMidi), when + duration * .65);
       gain.gain.setValueAtTime(0, when);
@@ -187,22 +223,42 @@
     }
 
     tick() {
-      if (this.musicBuffer) { this.syncMusic(); return; }
+      if (this.scene === 'forest' && this.musicBuffer) { this.syncMusic(); return; }
       if (!this.context || this.context.state !== 'running' || !this.enabled || this.paused) return;
       const now = this.context.currentTime;
       if (this.nextBeat < now - .2) this.nextBeat = now + .05;
-      // Slow C-major/add9 phrases: sparse melody, no drums, and no abrupt loop boundary.
-      const melody = [72, null, 76, 79, 74, null, 76, null, 69, null, 72, 76, 74, null, 72, null,
-        65, null, 69, 72, 76, null, 74, null, 67, null, 74, 79, 76, 74, 72, null];
-      const chords = [[48, 55, 64], [45, 52, 60], [41, 48, 57], [43, 50, 59]];
+      const { melody, chords, beat, decay, voice } = this.soundtrack;
       while (this.nextBeat < now + .22) {
         const position = this.beat % melody.length;
-        if (melody[position] !== null) this.note(melody[position], this.nextBeat, 2.3, .11);
-        if (position % 8 === 0) {
-          chords[Math.floor(position / 8)].forEach((pitch, index) => this.note(pitch, this.nextBeat + index * .06, 5.2, .055));
+        const softness = now < this.scenicUntil ? .28 : 1;
+        const pitch = melody[position];
+        if (pitch !== null) {
+          this.note(pitch, this.nextBeat, decay, .1 * softness, 'music', pitch, voice);
+          if (this.scene === 'castle' || this.scene === 'clouds') {
+            this.note(pitch + 19, this.nextBeat + .015, decay * .45, .018 * softness);
+          }
         }
-        this.nextBeat += .86;
+        if (position % 8 === 0) {
+          chords[Math.floor(position / 8)].forEach((chordPitch, index) =>
+            this.note(chordPitch, this.nextBeat + index * .09, beat * 7.5, .045 * softness));
+        }
+        if (this.scene === 'treehouse' && position % 2 === 0) {
+          this.note(38, this.nextBeat, .07, .045 * softness, 'music', 31, 'triangle');
+        }
+        this.nextBeat += beat;
         this.beat += 1;
+      }
+    }
+
+    updateEnvironment(world) {
+      if (this.scene !== 'castle' || !this.context || this.paused || !this.enabled) return;
+      const player = world.players[0];
+      const nearbyJet = world.flameJets.find(jet => Math.abs(jet.x - player.x) < 210 && jet.warning);
+      const nearbyFlame = world.flameJets.find(jet => Math.abs(jet.x - player.x) < 150 && jet.active);
+      const nearbyBat = world.bats.find(bat => Math.abs(bat.x - player.x) < 120);
+      const now = this.context.currentTime;
+      for (const [type, present, interval] of [['flameWarning', nearbyJet, .7], ['flame', nearbyFlame, .9], ['wings', nearbyBat, .65]]) {
+        if (present && now - (this.lastEffects.get(type) ?? -10) > interval) this.effect(type);
       }
     }
 
@@ -216,12 +272,23 @@
         gem: [[79, 0, .65, .13], [84, .09, .8, .09]],
         interact: [[60, 0, .24, .13], [67, .07, .28, .08]],
         spring: [[60, 0, .42, .12, 79]], respawn: [[64, 0, .7, .07], [60, .12, .8, .06]],
-        scenic: [[72, 0, 1.1, .1], [79, .2, 1.3, .1], [86, .4, 1.6, .08]],
+        scenic: [[50, 0, 3.5, .08], [74, .15, 2.2, .1], [81, .45, 2.4, .09], [86, .8, 2.8, .08], [89, 1.2, 2.6, .06]],
+        meteor: [[86, 0, 1.1, .035, 74], [93, .08, .8, .02, 81]],
+        constellation: [[74, 0, 1.8, .07], [77, .18, 2, .06], [81, .36, 2.4, .06]],
+        flameWarning: [[81, 0, .13, .045], [81, .18, .13, .035]],
+        flame: [[38, 0, .55, .065, 50]], wings: [[45, 0, .1, .03, 38], [48, .16, .09, .02, 40]],
         checkpoint: [[72, 0, .9, .11], [76, .18, .9, .1], [79, .36, 1.2, .09]],
         complete: [[72, 0, 1.2, .12], [76, .22, 1.2, .11], [79, .44, 1.4, .1], [84, .7, 1.8, .08]]
       };
-      for (const [pitch, delay, duration, strength, endPitch] of cues[type] || []) {
-        this.note(pitch, now + delay, duration, strength, 'effects', endPitch ?? pitch);
+      if (type === 'scenic') this.scenicUntil = now + 9;
+      const sceneCues = {
+        treehouse: { land: [[48, 0, .09, .08]], interact: [[62, 0, .12, .1], [69, .1, .16, .07]] },
+        clouds: { jump: [[74, 0, .35, .09, 86]], land: [[67, 0, .3, .05]], gem: [[86, 0, 1.2, .09], [93, .16, 1.4, .05]] },
+        castle: { land: [[38, 0, .15, .085], [57, .025, .22, .025]], interact: [[38, 0, .6, .08], [50, .12, .7, .06]], gem: [[81, 0, 1, .09], [86, .15, 1.3, .06]] }
+      };
+      const waveform = this.scene === 'treehouse' || type === 'flame' || type === 'wings' ? 'triangle' : 'sine';
+      for (const [pitch, delay, duration, strength, endPitch] of sceneCues[this.scene]?.[type] || cues[type] || []) {
+        this.note(pitch, now + delay, duration, strength, 'effects', endPitch ?? pitch, waveform);
       }
     }
   }

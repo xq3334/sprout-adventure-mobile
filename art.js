@@ -103,6 +103,121 @@
     return true;
   }
 
+  const SCENIC_DURATION = 10;
+  const meteorShow = [
+    { delay: .7, startX: 100, startY: 8, distance: 530, fall: 205, duration: 1.7, tail: 160 },
+    { delay: 1.5, startX: 380, startY: -30, distance: 450, fall: 230, duration: 1.5, tail: 125 },
+    { delay: 2.3, startX: -80, startY: 40, distance: 680, fall: 190, duration: 2.2, tail: 210 },
+    { delay: 3.2, startX: 580, startY: -20, distance: 400, fall: 195, duration: 1.6, tail: 100 },
+    { delay: 4.1, startX: 180, startY: -30, distance: 620, fall: 240, duration: 2.1, tail: 185 },
+    { delay: 5.2, startX: 460, startY: 5, distance: 500, fall: 220, duration: 1.8, tail: 140 }
+  ];
+  const constellation = [[305, 160], [342, 116], [389, 142], [430, 93], [478, 119], [520, 74], [559, 108]];
+
+  function drawGlow(context, positionX, positionY, radius, color) {
+    const gradient = context.createRadialGradient(positionX, positionY, 0, positionX, positionY, radius);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, '#a4dfff00');
+    context.fillStyle = gradient;
+    context.fillRect(positionX - radius, positionY - radius, radius * 2, radius * 2);
+  }
+
+  function drawScenicSky(context, elapsed, reduceMotion) {
+    if (elapsed < 0 || elapsed >= SCENIC_DURATION) return;
+    const envelope = Math.min(1, elapsed / 1.2, (SCENIC_DURATION - elapsed) / 1.8);
+    context.save();
+    context.globalAlpha = envelope;
+    context.globalCompositeOperation = 'screen';
+    // Wide, translucent ribbons stay in the sky rather than masking playable terrain.
+    for (let ribbon = 0; ribbon < 3; ribbon += 1) {
+      const gradient = context.createLinearGradient(0, 35, 0, 230);
+      gradient.addColorStop(0, '#90b4ff00');
+      gradient.addColorStop(.5, ribbon % 2 ? '#b798f51c' : '#79dfd822');
+      gradient.addColorStop(1, '#b1ceff00');
+      context.beginPath();
+      for (let position = -20; position <= 980; position += 20) {
+        const height = 80 + ribbon * 29 + Math.sin(position * .007 + ribbon + (reduceMotion ? 0 : elapsed * .22)) * 26;
+        if (position === -20) context.moveTo(position, height);
+        else context.lineTo(position, height);
+      }
+      context.lineTo(980, 230); context.lineTo(-20, 230); context.closePath();
+      context.fillStyle = gradient; context.fill();
+    }
+    if (!reduceMotion) {
+      for (const meteor of meteorShow) {
+        const progress = (elapsed - meteor.delay) / meteor.duration;
+        if (progress <= 0 || progress >= 1) continue;
+        const brightness = Math.min(1, progress * 8, (1 - progress) * 5) * envelope;
+        const headX = meteor.startX + meteor.distance * progress;
+        const headY = meteor.startY + meteor.fall * progress;
+        const tailLength = meteor.tail * Math.min(1, progress * 5);
+        const tailX = headX - tailLength;
+        const tailY = headY - tailLength * meteor.fall / meteor.distance;
+        const trail = context.createLinearGradient(tailX, tailY, headX, headY);
+        trail.addColorStop(0, '#9fb5ff00');
+        trail.addColorStop(.5, '#95bbff35');
+        trail.addColorStop(.88, '#c2e6ffb0');
+        trail.addColorStop(1, '#fff4df');
+        context.globalAlpha = brightness;
+        context.beginPath(); context.moveTo(tailX, tailY);
+        context.lineTo(headX, headY - 2); context.lineTo(headX + 3, headY);
+        context.lineTo(headX, headY + 2); context.closePath();
+        context.fillStyle = trail; context.fill();
+        context.beginPath(); context.moveTo(tailX, tailY); context.lineTo(headX, headY);
+        context.strokeStyle = trail; context.lineWidth = .8; context.stroke();
+        drawGlow(context, headX, headY, 17, '#badfff99');
+        context.fillStyle = '#fff9ea'; context.beginPath(); context.arc(headX, headY, 1.8, 0, Math.PI * 2); context.fill();
+        for (let spark = 1; spark <= 9; spark += 1) {
+          const lag = spark * 10;
+          const sparkX = headX - lag;
+          const sparkY = headY - lag * meteor.fall / meteor.distance + Math.sin(spark * 3.7 + elapsed * 2) * spark * .65;
+          context.globalAlpha = brightness * (1 - spark / 10) * .65;
+          context.fillRect(sparkX, sparkY, spark % 3 ? 1 : 2, 1.4);
+        }
+      }
+    }
+    const reveal = reduceMotion ? 7 : Math.max(0, (elapsed - 3) * 2);
+    constellation.forEach(([positionX, positionY], index) => {
+      const visibility = Math.min(1, Math.max(0, reveal - index));
+      context.globalAlpha = envelope * visibility;
+      if (index > 0) {
+        const [previousX, previousY] = constellation[index - 1];
+        context.beginPath(); context.moveTo(previousX, previousY);
+        context.lineTo(previousX + (positionX - previousX) * visibility, previousY + (positionY - previousY) * visibility);
+        context.strokeStyle = '#c1dcff99'; context.lineWidth = .8; context.stroke();
+      }
+      drawGlow(context, positionX, positionY, 13, '#b9dcff80');
+      context.strokeStyle = '#fff2cd'; context.lineWidth = 1.2;
+      context.beginPath(); context.moveTo(positionX - 4, positionY); context.lineTo(positionX + 4, positionY);
+      context.moveTo(positionX, positionY - 4); context.lineTo(positionX, positionY + 4); context.stroke();
+    });
+    context.restore();
+  }
+
+  function drawScenicTerrace(context, spot, elapsed, reduceMotion) {
+    if (elapsed < 0 || elapsed >= SCENIC_DURATION) return;
+    const envelope = Math.min(1, elapsed, (SCENIC_DURATION - elapsed) / 2);
+    context.save();
+    context.globalCompositeOperation = 'screen';
+    context.globalAlpha = envelope * .65;
+    drawGlow(context, spot.x, spot.y - 40, 130, '#a9bfff45');
+    for (let ring = 0; ring < 3; ring += 1) {
+      const expansion = reduceMotion ? .4 + ring * .18 : (elapsed * .22 + ring / 3) % 1;
+      context.globalAlpha = envelope * (1 - expansion) * .5;
+      context.beginPath(); context.ellipse(spot.x, spot.y - 2, 30 + expansion * 100, 6 + expansion * 13, 0, 0, Math.PI * 2);
+      context.strokeStyle = '#b5dcff'; context.lineWidth = 1; context.stroke();
+    }
+    for (let mote = 0; mote < 24; mote += 1) {
+      const rise = reduceMotion ? mote / 24 : (elapsed * .13 + mote * .618) % 1;
+      const positionX = spot.x + Math.sin(mote * 9.3 + (reduceMotion ? 0 : elapsed * .4)) * (45 + mote * 2);
+      const positionY = spot.y - 10 - rise * 150;
+      context.globalAlpha = envelope * Math.sin(rise * Math.PI) * .8;
+      drawGlow(context, positionX, positionY, 7, mote % 2 ? '#ffe6a677' : '#b7eaff77');
+      context.fillStyle = '#fff1c9'; context.fillRect(positionX, positionY, 1.5, 1.5);
+    }
+    context.restore();
+  }
+
   function drawCastleStone(context, stone) {
     context.save();
     context.beginPath(); context.roundRect(stone.x, stone.y, stone.w, stone.h, 4); context.clip();
@@ -222,5 +337,5 @@
     return true;
   }
 
-  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer, drawCastleStone };
+  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer, drawCastleStone, drawScenicSky, drawScenicTerrace, SCENIC_DURATION, meteorShow };
 })();

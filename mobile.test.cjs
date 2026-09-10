@@ -267,6 +267,127 @@ test('castle balcony is reachable by two jumps from the main path', () => {
   assert.equal(world.scenicSpots[0].visited, true);
 });
 
+test('castle extension can be crossed with timed movement and jumps', () => {
+  const world = new GameWorld(3);
+  const player = world.players[0];
+  Object.assign(player, { x: 4220, y: 412 });
+  const runUntil = (condition, input = {}, maximumFrames = 1200) => {
+    for (let frame = 0; frame < maximumFrames && !condition(); frame += 1) advance(world, 1, input);
+    assert.ok(condition(), `Route stalled at ${player.x}, ${player.y}`);
+    assert.equal(world.deaths, 0);
+  };
+  advance(world, 5);
+  const bridge = world.movingPlatforms[0];
+  runUntil(() => bridge.x < 4310 && bridge.deltaX < 0);
+  advance(world, 1, { jumpPressed: true, right: true });
+  runUntil(() => player.x > 4330, { right: true });
+  runUntil(() => player.standingOn === bridge);
+  runUntil(() => player.x > 4470);
+  advance(world, 1, { jumpPressed: true, right: true });
+  runUntil(() => player.x > 4660 && player.grounded, { right: true });
+  advance(world, 20);
+  for (const jet of world.flameJets.slice(2)) {
+    runUntil(() => player.x >= jet.x - 90, { right: true });
+    advance(world, 20);
+    runUntil(() => (world.time + jet.phase) % jet.period < .15);
+    runUntil(() => player.x > jet.x + jet.w + 15, { right: true });
+    advance(world, 20);
+  }
+  runUntil(() => player.x >= 5060, { right: true });
+  advance(world, 1, { jumpPressed: true, right: true });
+  runUntil(() => player.x >= 5270 && player.grounded, { right: true });
+  runUntil(() => player.x >= 5350, { right: true });
+  advance(world, 1, { interactPressed: true });
+  assert.equal(world.gates[0].open, true);
+  runUntil(() => world.completed, { right: true });
+});
+
+test('every map selects a distinct soundtrack and synthesis respects pause', () => {
+  const browser = {};
+  runInNewContext(readFileSync(require.resolve('./audio.js'), 'utf8'), { window: browser });
+  const audio = new browser.CozyAudio();
+  assert.equal(new Set(LEVELS.map(level => level.music)).size, 4);
+  for (const level of LEVELS) {
+    audio.setScene(level.music);
+    assert.equal(audio.scene, level.music);
+  }
+  const notes = [];
+  audio.context = { currentTime: 1, state: 'running' };
+  audio.note = (...argumentsList) => notes.push(argumentsList);
+  audio.paused = false;
+  audio.nextBeat = 1;
+  audio.musicBuffer = { duration: 100 };
+  audio.tick();
+  assert.ok(notes.length > 0, 'Castle synthesis must continue even when the forest MP3 is cached');
+  notes.length = 0;
+  audio.paused = true;
+  audio.tick(); audio.effect('scenic');
+  assert.equal(notes.length, 0);
+  audio.paused = false;
+  audio.effect('scenic');
+  assert.equal(notes.length, 5);
+  assert.ok(audio.scenicUntil > audio.context.currentTime);
+});
+
+test('scenic rendering stays bounded and restores canvas state in both motion modes', () => {
+  const browser = {};
+  runInNewContext(readFileSync(require.resolve('./art.js'), 'utf8'), { window: browser, Image: class {} });
+  let operations = 0;
+  let stackDepth = 0;
+  const drawing = new Proxy({}, {
+    get(target, property) {
+      if (property === 'save') return () => { stackDepth += 1; };
+      if (property === 'restore') return () => { stackDepth -= 1; };
+      if (property === 'createLinearGradient' || property === 'createRadialGradient') return () => ({ addColorStop() {} });
+      return (...values) => {
+        operations += 1;
+        for (const value of values) if (typeof value === 'number') assert.ok(Number.isFinite(value));
+      };
+    },
+    set(target, property, value) {
+      if (property === 'globalAlpha') assert.ok(value >= 0 && value <= 1);
+      return true;
+    }
+  });
+  for (const reduced of [false, true]) {
+    for (const elapsed of [0, .8, 2, 4.9, 7, 9.9, 10]) {
+      operations = 0;
+      browser.StorybookArt.drawScenicSky(drawing, elapsed, reduced);
+      browser.StorybookArt.drawScenicTerrace(drawing, { x: 2320, y: 275 }, elapsed, reduced);
+      assert.equal(stackDepth, 0);
+      assert.ok(operations < 700);
+    }
+  }
+});
+
+test('scene switching stops the forest recording and resumes it without duplication', () => {
+  const browser = {};
+  runInNewContext(readFileSync(require.resolve('./audio.js'), 'utf8'), { window: browser });
+  const audio = new browser.CozyAudio();
+  let starts = 0;
+  let stops = 0;
+  audio.context = {
+    currentTime: 10, state: 'running',
+    createBufferSource() { return { connect() {}, disconnect() {}, start() { starts += 1; }, stop() { stops += 1; } }; }
+  };
+  audio.buses = { music: {} };
+  audio.windFilter = { frequency: { setTargetAtTime() {} } };
+  audio.musicBuffer = { duration: 100 };
+  audio.musicLoadStarted = true;
+  audio.paused = false;
+  audio.syncMusic(); audio.syncMusic();
+  assert.equal(starts, 1);
+  audio.setScene('castle');
+  assert.equal(stops, 1);
+  assert.equal(audio.musicSource, null);
+  audio.syncMusic();
+  assert.equal(starts, 1);
+  audio.setScene('forest');
+  assert.equal(starts, 2);
+  audio.setScene('forest');
+  assert.equal(starts, 2);
+});
+
 test('existing three-level save unlocks the fourth level', () => {
   const records = sanitizeProgress({ 0: { time: 30, gems: 5 }, 1: { time: 40, gems: 5 }, 2: { time: 50, gems: 5 } }, LEVELS);
   assert.equal(getUnlockedLevel(records, LEVELS.length), 3);

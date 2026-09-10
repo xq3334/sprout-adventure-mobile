@@ -189,7 +189,14 @@
   }
 
   function drawPlatform(platform, moving = false) {
-    if (world.level.theme === 'castle') { art.drawCastleStone(context, platform); return; }
+    if (world.level.theme === 'castle') {
+      art.drawCastleStone(context, platform);
+      if (moving) {
+        line([[platform.x + 10, platform.y + 12], [platform.x + platform.w - 10, platform.y + 12]], '#c6b0ef', 2);
+        ellipse(platform.x + platform.w / 2, platform.y + 32, 35, 6, '#b39af32a');
+      }
+      return;
+    }
     const { x, y, w, h } = platform;
     roundRectangle(x, y, w, h, 6, moving ? '#bfa77b' : '#aa926c');
     roundRectangle(x - 3, y - 4, w + 6, 10, 5, moving ? '#bdd492' : '#a6c876');
@@ -239,6 +246,7 @@
       }
     });
     world.scenicSpots.forEach(spot => {
+      if (scenicEffectTime > 0) art.drawScenicTerrace(context, spot, art.SCENIC_DURATION - scenicEffectTime, comfort.reduceMotion);
       ellipse(spot.x, spot.y - 2, 47, 8, '#b0e7ff44');
       line([[spot.x - 90, spot.y], [spot.x - 90, spot.y - 58], [spot.x + 90, spot.y - 58], [spot.x + 90, spot.y]], '#b6c8e1', 3);
       for (let offset = -75; offset <= 75; offset += 25) line([[spot.x + offset, spot.y], [spot.x + offset, spot.y - 45]], '#7e91b3', 2);
@@ -411,6 +419,7 @@
     context.clip();
     context.translate(viewX, 0);
     drawBackground(camera, viewWidth);
+    if (scenicEffectTime > 0) art.drawScenicSky(context, art.SCENIC_DURATION - scenicEffectTime, comfort.reduceMotion);
     context.save();
     context.translate(-camera, 0);
     drawDecorations();
@@ -451,18 +460,12 @@
     const camera = Math.max(0, Math.min(world.level.width - 960, player.x - 960 * .43));
     drawScene(0, 960, camera);
     if (scenicEffectTime > 0) {
+      const elapsed = art.SCENIC_DURATION - scenicEffectTime;
       context.save();
-      context.globalAlpha = Math.min(1, scenicEffectTime);
-      roundRectangle(255, 112, 450, 70, 16, '#19253bcb', '#c9d9f1');
-      text('月影古堡 · 月光纪念已收集', 480, 141, 18, '#edf1ff');
-      text('在旅途中，留一点时间给风景。', 480, 165, 11, '#bccce4');
-      if (!comfort.reduceMotion) {
-        const elapsed = 5 - scenicEffectTime;
-        for (let index = 0; index < 7; index += 1) {
-          const travel = (elapsed * 180 + index * 151) % 1000;
-          line([[travel, 30 + index * 17], [travel - 55, 8 + index * 17]], '#d7efffaa', 2);
-        }
-      }
+      context.globalAlpha = Math.min(1, elapsed, scenicEffectTime);
+      roundRectangle(320, 342, 320, 58, 12, '#142139a8', '#b2ccec66');
+      text('月影古堡 · 星河为你停留', 480, 366, 16, '#f5edd9');
+      text('月光纪念已收集  /  观月台', 480, 386, 10, '#c3d7f1');
       context.restore();
     }
   }
@@ -510,6 +513,7 @@
     currentLevel = index;
     document.querySelector('.settings-menu').open = false;
     world = new GameWorld(index, 1);
+    cozyAudio.setScene?.(world.level.music);
     scenicEffectTime = 0;
     document.body.dataset.theme = world.level.theme || 'forest';
     element('scenic-status').hidden = !world.scenicSpots.length;
@@ -547,7 +551,7 @@
     if (status === 'playing') {
       status = 'paused';
       cozyAudio.setPaused(true);
-      showOverlay('在树荫下歇一会。', '风还在吹，森林也不会离开。\n准备好了，就继续向前。', '继续探险');
+      showOverlay(world.level.theme === 'castle' ? '在月光下歇一会。' : '在树荫下歇一会。', world.level.theme === 'castle' ? '钟声暂歇，月光仍在。\n准备好了，再向钟楼出发。' : '风还在吹，森林也不会离开。\n准备好了，就继续向前。', '继续探险');
       element('pause-button').textContent = '▷';
       element('pause-button').setAttribute('aria-label', '继续游戏');
     } else startGame();
@@ -588,7 +592,10 @@
     element('sound-button').querySelector('.sound-slash').hidden = enabled;
     element('audio-status').textContent = !audioAvailable
       ? '音乐模块暂时未加载，仍可安静游玩；请刷新页面后再试。'
-      : !enabled ? '声音已关闭，安静地走走也很好。' : cozyAudio.musicFailed ? '背景音乐加载失败，已使用合成旋律；动作音效仍可用。' : cozyAudio.musicBuffer ? 'Carefree · 音乐已就绪，暂停时停止，继续时接续播放。' : '开始后加载背景音乐，跳跃与交互音效即时响应。';
+      : !enabled ? '声音已关闭，安静地走走也很好。'
+        : cozyAudio.scene !== 'forest' ? `${cozyAudio.soundtrack.name} · 场景配乐与环境音效已启用。`
+        : cozyAudio.musicFailed ? '森林背景音乐加载失败，已使用合成旋律；动作音效仍可用。'
+        : cozyAudio.musicBuffer ? '森林 · Carefree，切换地图会自动更换配乐。' : '开始后加载森林配乐，其他地图使用专属合成乐曲。';
   }
 
   function saveComfort() {
@@ -615,7 +622,7 @@
         for (let index = 0; index < 9; index += 1) particles.push({ x: player.x + player.w / 2, y: player.y + player.h, velocityX: (index - 4) * 15, velocityY: 8 + Math.random() * 20, size: 2 + Math.random() * 2, life: .6, color: '#fff7df' });
       }
       if (event.type === 'scenic') {
-        scenicEffectTime = 5;
+        scenicEffectTime = art.SCENIC_DURATION;
         scenicMemory = true;
         let saved = true;
         try { localStorage.setItem('sprout-mobile-moon-memory-v1', 'true'); } catch { saved = false; }
@@ -677,7 +684,19 @@
     previousTime = timestamp;
     if (status !== 'paused' && !document.hidden) animationTime += deltaTime;
     const skyName = art.updateSky(status === 'paused' || document.hidden ? 0 : deltaTime, comfort.sky, comfort.reduceMotion);
-    if (status === 'playing') scenicEffectTime = Math.max(0, scenicEffectTime - deltaTime);
+    if (status === 'playing' && scenicEffectTime > 0) {
+      const previousElapsed = art.SCENIC_DURATION - scenicEffectTime;
+      scenicEffectTime = Math.max(0, scenicEffectTime - deltaTime);
+      const elapsed = art.SCENIC_DURATION - scenicEffectTime;
+      if (!comfort.reduceMotion) {
+        for (const meteor of art.meteorShow) {
+          if (previousElapsed < meteor.delay && elapsed >= meteor.delay) playSound('meteor');
+        }
+      }
+      if (previousElapsed < 3 && elapsed >= 3) playSound('constellation');
+      const spot = world.scenicSpots[0];
+      if (!spot || Math.abs(world.players[0].x - spot.x) > 330 || Math.abs(world.players[0].y + world.players[0].h - spot.y) > 85) scenicEffectTime = 0;
+    }
     element('sky-label').textContent = world.level.theme === 'castle' ? '月影古堡 · 固定夜景' : `${skyName} · ${comfort.reduceMotion ? '装饰静止' : comfort.sky === 'auto' ? '天空约五分钟循环' : '留住这一刻'}`;
     element('timer').hidden = comfort.hideTimer;
     element('timer').previousElementSibling.hidden = comfort.hideTimer;
@@ -690,6 +709,7 @@
         accumulator -= 1 / 120;
         processEvents();
       }
+      cozyAudio.updateEnvironment?.(world);
       if (toastTime > 0) {
         toastTime -= deltaTime;
         if (toastTime <= 0) element('bottom-tip').textContent = '掉下去也没关系，小芽总会重新长大。';
