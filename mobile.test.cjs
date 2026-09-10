@@ -173,7 +173,108 @@ test('single player can carry and place a crate onto its pressure plate', () => 
   assert.equal(world.gates[0].open, true);
 });
 
-test('checkpoint respawn and completion events work in all three levels', () => {
+test('crate tutorial cannot be bypassed but is reachable from the crate', () => {
+  const withoutCrate = new GameWorld(1);
+  withoutCrate.crates = [];
+  Object.assign(withoutCrate.players[0], { x: 300, y: 412 });
+  advance(withoutCrate, 5);
+  advance(withoutCrate, 1, { jumpPressed: true, right: true });
+  advance(withoutCrate, 100, { right: true });
+  assert.ok(withoutCrate.players[0].x <= 320);
+
+  const withCrate = new GameWorld(1);
+  const player = withCrate.players[0];
+  Object.assign(player, { x: 280, y: 372 });
+  advance(withCrate, 5);
+  assert.equal(player.standingOn, withCrate.crates[1]);
+  advance(withCrate, 1, { jumpPressed: true, right: true });
+  advance(withCrate, 70, { right: true });
+  assert.ok(player.x > 350);
+  assert.equal(player.y + player.h, 300);
+});
+
+test('crate-only plate cannot be activated by the player alone', () => {
+  const world = new GameWorld(1);
+  Object.assign(world.players[0], { x: 1340, y: 412 });
+  advance(world, 10);
+  assert.equal(world.level.plates[0].active, false);
+  assert.equal(world.gates[0].open, false);
+});
+
+test('night patrols stay inside territories and contact causes one protected respawn', () => {
+  const world = new GameWorld(3);
+  for (let frame = 0; frame < 1200; frame += 1) {
+    advance(world, 1);
+    for (const bat of world.bats) assert.ok(bat.x >= bat.originX && bat.x <= bat.originX + bat.range);
+  }
+  const bat = world.bats[0];
+  Object.assign(world.players[0], { x: bat.x, y: bat.y });
+  advance(world, 1);
+  assert.equal(world.deaths, 1);
+  assert.ok(world.players[0].invincible > 0);
+});
+
+test('flame jet has safe, warning and damaging phases', () => {
+  const world = new GameWorld(3);
+  const jet = world.flameJets[0];
+  world.time = 0;
+  world.updateNightObstacles();
+  assert.equal(jet.active, false);
+  world.time = jet.period - jet.activeDuration - .4;
+  world.updateNightObstacles();
+  assert.equal(jet.warning, true);
+  assert.equal(jet.active, false);
+  world.time = jet.period - .5;
+  Object.assign(world.players[0], { x: jet.x, y: 412 });
+  advance(world, 1);
+  assert.equal(jet.active, true);
+  assert.equal(world.deaths, 1);
+});
+
+test('scenic interaction requires reaching the balcony and triggers once per run', () => {
+  const world = new GameWorld(3);
+  const spot = world.scenicSpots[0];
+  const player = world.players[0];
+  Object.assign(player, { x: spot.x, y: 412, grounded: true });
+  world.interact(player);
+  assert.equal(spot.visited, false);
+  Object.assign(player, { y: spot.y - player.h });
+  advance(world, 5);
+  world.interact(player);
+  world.interact(player);
+  assert.equal(world.events.filter(event => event.type === 'scenic').length, 1);
+  world.respawn(player);
+  assert.equal(spot.visited, true);
+});
+
+test('castle balcony is reachable by two jumps from the main path', () => {
+  const world = new GameWorld(3);
+  const player = world.players[0];
+  Object.assign(player, { x: 2005, y: 412 });
+  advance(world, 5);
+  advance(world, 1, { jumpPressed: true, right: true });
+  advance(world, 55, { right: true });
+  advance(world, 20);
+  assert.equal(player.y + player.h, 360);
+  advance(world, 1, { jumpPressed: true, right: true });
+  advance(world, 65, { right: true });
+  advance(world, 20);
+  assert.equal(player.y + player.h, 275);
+  advance(world, 20, { right: true });
+  advance(world, 20);
+  assert.ok(world.getNearbyScenicSpot(player));
+  advance(world, 1, { interactPressed: true });
+  assert.equal(world.scenicSpots[0].visited, true);
+});
+
+test('existing three-level save unlocks the fourth level', () => {
+  const records = sanitizeProgress({ 0: { time: 30, gems: 5 }, 1: { time: 40, gems: 5 }, 2: { time: 50, gems: 5 } }, LEVELS);
+  assert.equal(getUnlockedLevel(records, LEVELS.length), 3);
+  assert.equal(LEVELS[3].theme, 'castle');
+  assert.ok(LEVELS[3].width > LEVELS[2].width * 2);
+});
+
+test('checkpoint respawn and completion events work in all levels', () => {
   for (let levelIndex = 0; levelIndex < LEVELS.length; levelIndex += 1) {
     const world = new GameWorld(levelIndex, 1);
     const player = world.players[0];

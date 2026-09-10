@@ -8,13 +8,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>芽芽探险队 · 手机横屏版</title>
-  <link rel="stylesheet" href="style.css?v=20260910-2">
+  <link rel="stylesheet" href="style.css?v=20260910-3">
   <script defer src="viewport.js?v=20260910-2"></script>
-  <script defer src="engine.js"></script>
-  <script defer src="art.js"></script>
-  <script defer src="audio.js"></script>
+  <script defer src="engine.js?v=20260910-3"></script>
+  <script defer src="art.js?v=20260910-3"></script>
+  <script defer src="audio.js?v=20260910-3"></script>
   <script defer src="mobile-state.js"></script>
-  <script defer src="game.js?v=20260910-2"></script>
+  <script defer src="game.js?v=20260910-3"></script>
 </head>
 <body>
   <div class="storybook-backdrop" aria-hidden="true"></div>
@@ -42,6 +42,7 @@
           <span class="timer-divider" aria-hidden="true"></span>
           <span class="timer-icon" aria-hidden="true">◷</span>
           <span id="timer">00:00</span>
+          <span id="scenic-status" hidden>月光纪念 0 / 1</span>
         </div>
       </header>
 
@@ -63,12 +64,12 @@
                 <span class="eyebrow">YOUR EXPEDITION</span>
                 <h2 id="level-name">初见森林</h2>
               </div>
-              <span class="panel-number" id="panel-number">01 / 03</span>
+              <span class="panel-number" id="panel-number">01 / 04</span>
             </div>
             <p class="level-description" id="level-description">一段轻轻的起步，认识跳跃、弹簧和森林里的第一道机关。</p>
             <div class="difficulty">
               <span>难度</span>
-              <div id="difficulty-dots" aria-hidden="true"><i class="filled"></i><i></i><i></i></div>
+              <div id="difficulty-dots" aria-hidden="true"><i class="filled"></i><i></i><i></i><i></i></div>
               <strong id="difficulty-text">轻松起步</strong>
             </div>
             <ul class="objectives">
@@ -99,6 +100,7 @@
       <button data-level="0" class="active" type="button" aria-pressed="true"><b>01</b><span>初见森林</span></button>
       <button data-level="1" type="button" aria-pressed="false"><b>02</b><span>树屋机关</span></button>
       <button data-level="2" type="button" aria-pressed="false"><b>03</b><span>云间旅途</span></button>
+      <button data-level="3" class="challenge-tab" type="button" aria-pressed="false"><b>04</b><span>月影古堡</span></button>
     </nav>
 
     <div class="toolbar-actions" aria-label="游戏功能">

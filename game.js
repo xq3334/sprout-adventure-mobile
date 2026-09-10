@@ -11,6 +11,9 @@
   const touchButtons = [...document.querySelectorAll('[data-touch]')];
   const particles = [];
   const playerCount = 1;
+  let scenicEffectTime = 0;
+  let scenicMemory = false;
+  try { scenicMemory = localStorage.getItem('sprout-mobile-moon-memory-v1') === 'true'; } catch {}
   let world;
   let status = 'welcome';
   let animationTime = 0;
@@ -166,6 +169,7 @@
   }
 
   function drawTerrain(terrain) {
+    if (world.level.theme === 'castle') { art.drawCastleStone(context, terrain); return; }
     if (art.drawTerrain(context, terrain)) return;
     const { x, y, w, h } = terrain;
     roundRectangle(x, y + 4, w, h, 9, '#b59c71');
@@ -185,6 +189,7 @@
   }
 
   function drawPlatform(platform, moving = false) {
+    if (world.level.theme === 'castle') { art.drawCastleStone(context, platform); return; }
     const { x, y, w, h } = platform;
     roundRectangle(x, y, w, h, 6, moving ? '#bfa77b' : '#aa926c');
     roundRectangle(x - 3, y - 4, w + 6, 10, 5, moving ? '#bdd492' : '#a6c876');
@@ -198,7 +203,62 @@
     }
   }
 
+  function drawNightObjects() {
+    world.bats.forEach(bat => {
+      for (const boundary of [bat.originX, bat.originX + bat.range + bat.w]) {
+        line([[boundary, 450], [boundary, 419]], '#7e8ba5', 3);
+        ellipse(boundary, 418, 5, 5, '#d8b6e1');
+      }
+      const centerX = bat.x + bat.w / 2;
+      const centerY = bat.y + bat.h / 2;
+      const flap = Math.sin(world.time * 14) * 10;
+      for (const side of [-1, 1]) {
+        context.beginPath();
+        context.moveTo(centerX, centerY);
+        context.quadraticCurveTo(centerX + side * 15, centerY - 25 + flap, centerX + side * 34, centerY - 12 + flap);
+        context.lineTo(centerX + side * 24, centerY + 7);
+        context.lineTo(centerX + side * 15, centerY + 2);
+        context.lineTo(centerX + side * 8, centerY + 12);
+        context.closePath(); context.fillStyle = '#8e77ac'; context.fill();
+        context.strokeStyle = '#cebee8'; context.lineWidth = 1.5; context.stroke();
+      }
+      ellipse(centerX, centerY, 11, 12, '#3a294e');
+      ellipse(centerX - 4, centerY - 2, 2, 2, '#ffe7ac');
+      ellipse(centerX + 4, centerY - 2, 2, 2, '#ffe7ac');
+    });
+    world.flameJets.forEach(jet => {
+      roundRectangle(jet.x - 6, jet.y + jet.h - 6, jet.w + 12, 9, 3, '#8994ac', '#c2cfdf');
+      if (jet.warning) { ellipse(jet.x + jet.w / 2, 441, 24, 8, '#ffd17d77'); text('!', jet.x + jet.w / 2, 421, 20, '#ffe1a5'); }
+      if (jet.active) {
+        const centerX = jet.x + jet.w / 2;
+        context.beginPath(); context.moveTo(jet.x, jet.y + jet.h);
+        context.quadraticCurveTo(jet.x - 8, jet.y + 30, centerX, jet.y);
+        context.quadraticCurveTo(jet.x + jet.w + 8, jet.y + 30, jet.x + jet.w, jet.y + jet.h);
+        context.fillStyle = '#b59affcc'; context.fill();
+        ellipse(centerX, jet.y + 47, 9, 22, '#eaf4ff');
+      }
+    });
+    world.scenicSpots.forEach(spot => {
+      ellipse(spot.x, spot.y - 2, 47, 8, '#b0e7ff44');
+      line([[spot.x - 90, spot.y], [spot.x - 90, spot.y - 58], [spot.x + 90, spot.y - 58], [spot.x + 90, spot.y]], '#b6c8e1', 3);
+      for (let offset = -75; offset <= 75; offset += 25) line([[spot.x + offset, spot.y], [spot.x + offset, spot.y - 45]], '#7e91b3', 2);
+      ellipse(spot.x, spot.y - 76, 19, 19, '#d5e9ff');
+      ellipse(spot.x + 8, spot.y - 82, 17, 17, '#39436c');
+      text(spot.visited ? '月光留影已完成' : '观月台 · 点交互留影', spot.x, spot.y - 109, 12, '#ecf0ff');
+    });
+  }
+
   function drawDecorations() {
+    if (world.level.theme === 'castle') {
+      world.terrain.forEach(terrain => {
+        for (let position = terrain.x + 70; position < terrain.x + terrain.w; position += 240) {
+          line([[position, terrain.y], [position, terrain.y - 70]], '#697b97', 4);
+          ellipse(position, terrain.y - 72, 25, 30, '#ffdc8020');
+          roundRectangle(position - 6, terrain.y - 83, 12, 20, 4, '#ffe5a3');
+        }
+      });
+      return;
+    }
     world.terrain.forEach((terrain, terrainIndex) => {
       if (terrain.w > 310) drawTree(terrain.x + terrain.w - 70, terrain.y, .82 + terrainIndex % 2 * .22);
       if (terrainIndex === 1) art.drawImage(context, 'cottage', terrain.x + 35, terrain.y - 160, 210, 160);
@@ -358,6 +418,7 @@
     world.platforms.forEach(platform => drawPlatform(platform));
     world.movingPlatforms.forEach(platform => drawPlatform(platform, true));
     drawMechanisms();
+    drawNightObjects();
     drawExit();
     world.level.signs.forEach(sign => {
       roundRectangle(sign.x - 70, sign.y - 24, 140, 29, 8, '#f5f5d4ce');
@@ -389,6 +450,21 @@
     const player = world.players[0];
     const camera = Math.max(0, Math.min(world.level.width - 960, player.x - 960 * .43));
     drawScene(0, 960, camera);
+    if (scenicEffectTime > 0) {
+      context.save();
+      context.globalAlpha = Math.min(1, scenicEffectTime);
+      roundRectangle(255, 112, 450, 70, 16, '#19253bcb', '#c9d9f1');
+      text('月影古堡 · 月光纪念已收集', 480, 141, 18, '#edf1ff');
+      text('在旅途中，留一点时间给风景。', 480, 165, 11, '#bccce4');
+      if (!comfort.reduceMotion) {
+        const elapsed = 5 - scenicEffectTime;
+        for (let index = 0; index < 7; index += 1) {
+          const travel = (elapsed * 180 + index * 151) % 1000;
+          line([[travel, 30 + index * 17], [travel - 55, 8 + index * 17]], '#d7efffaa', 2);
+        }
+      }
+      context.restore();
+    }
   }
 
   function syncTouchButtons() {
@@ -434,6 +510,10 @@
     currentLevel = index;
     document.querySelector('.settings-menu').open = false;
     world = new GameWorld(index, 1);
+    scenicEffectTime = 0;
+    document.body.dataset.theme = world.level.theme || 'forest';
+    element('scenic-status').hidden = !world.scenicSpots.length;
+    element('sky-mode').disabled = world.level.theme === 'castle';
     particles.length = 0;
     accumulator = 0;
     toastTime = 0;
@@ -444,7 +524,7 @@
     element('level-name').textContent = level.name;
     element('level-description').textContent = level.description;
     element('location-text').textContent = `0${index + 1} · ${level.name}`;
-    element('panel-number').textContent = `0${index + 1} / 03`;
+    element('panel-number').textContent = `${String(index + 1).padStart(2, '0')} / ${String(LEVELS.length).padStart(2, '0')}`;
     element('mechanism-description').textContent = level.mechanism;
     element('context-tip').textContent = level.hint;
     element('difficulty-text').textContent = level.difficulty;
@@ -455,7 +535,7 @@
     element('overlay').hidden = startPlaying;
     element('pause-button').textContent = 'Ⅱ';
     element('pause-button').setAttribute('aria-label', '暂停游戏');
-    if (!startPlaying) showOverlay('森林正在等你。', '左手按住方向，右手轻点跳跃。\n松开跳跃可以跳低一点，靠近机关点交互。', '开始探险', 'WELCOME TO GREENLEAF ISLAND');
+    if (!startPlaying) showOverlay(index === 3 ? '月下古堡，启程。' : '森林正在等你。', index === 3 ? '观察蝙蝠的巡逻路线，留意喷焰预警。\n登上观月台，点交互收集月光纪念。' : '前三关是基础体验：跳跃、木箱与浮台。\n完成后解锁月影古堡，开始正式闯关。', '开始探险', index === 3 ? 'CHAPTER 04 · MOONLIT CASTLE' : 'WELCOME TO GREENLEAF ISLAND');
     updateHud();
     cozyAudio.setPaused(!startPlaying);
     if (startPlaying) { canvas.focus({ preventScroll: true }); enableAudio(); }
@@ -534,6 +614,18 @@
         const player = world.players[0];
         for (let index = 0; index < 9; index += 1) particles.push({ x: player.x + player.w / 2, y: player.y + player.h, velocityX: (index - 4) * 15, velocityY: 8 + Math.random() * 20, size: 2 + Math.random() * 2, life: .6, color: '#fff7df' });
       }
+      if (event.type === 'scenic') {
+        scenicEffectTime = 5;
+        scenicMemory = true;
+        let saved = true;
+        try { localStorage.setItem('sprout-mobile-moon-memory-v1', 'true'); } catch { saved = false; }
+        showToast(`${event.name} · ${saved ? '纪念已存入本机旅行册' : '已打卡，本机暂不能保存'}`);
+        if (!comfort.reduceMotion) {
+          for (let index = 0; index < 45; index += 1) {
+            particles.push({ x: event.x + (Math.random() - .5) * 170, y: event.y - 20, velocityX: (Math.random() - .5) * 65, velocityY: -80 - Math.random() * 80, size: 2, life: 2.5, color: index % 2 ? '#c5eaff' : '#f7e5b0' });
+          }
+        }
+      }
       if (event.type === 'checkpoint') showToast('营地点亮了！跌落后会从这里重新出发。');
       if (event.type === 'respawn') showToast('没关系，再试一次。这一次一定会走得更远。');
       if (event.type === 'hint') showToast(event.text);
@@ -548,7 +640,7 @@
           catch { storageAvailable = false; element('save-status').textContent = '存档未能写入，不影响当前游玩'; }
         }
         const lastLevel = currentLevel === LEVELS.length - 1;
-        showOverlay(lastLevel ? '小小芽，也能走很远。' : '又走远了一点。', `收集星光 ${world.collected} / ${world.gems.length} · 用时 ${formatTime(world.time)}\n勇敢重来 ${world.deaths} 次\n${lastLevel ? '三段旅程全部完成，可以回头收集遗漏的星光。' : '下一关已经解锁，继续你的森林旅程。'}`, lastLevel ? '再走一遍' : '前往下一关', 'A LITTLE COURAGE GOES A LONG WAY');
+        showOverlay(lastLevel ? '小小芽，也能走很远。' : '又走远了一点。', `收集星光 ${world.collected} / ${world.gems.length} · 用时 ${formatTime(world.time)}\n勇敢重来 ${world.deaths} 次\n${lastLevel ? `全部 ${LEVELS.length} 段旅程完成，可以回头收集星光与风景纪念。` : currentLevel === 2 ? '基础体验完成！月影古堡正式闯关已解锁。' : '下一关已经解锁，继续你的森林旅程。'}`, lastLevel ? '再走一遍' : '前往下一关', 'A LITTLE COURAGE GOES A LONG WAY');
         refreshLevelTabs();
       }
     });
@@ -567,7 +659,12 @@
       item.querySelector('.objective-state').textContent = complete ? '✓' : '○';
     });
     const player = world.players[0];
-    const canInteract = player.carrying !== null || world.level.levers.some(lever => Math.abs(lever.x - player.x) < 66 && Math.abs(lever.y - player.y) < 75) || world.crates.some(crate => crate.carrier === null && Math.abs(crate.x - player.x) < 70 && Math.abs(crate.y - player.y) < 65);
+    const scenicSpot = world.getNearbyScenicSpot(player);
+    const interactButton = document.querySelector('[data-touch="interact"]');
+    interactButton.querySelector('small').textContent = scenicSpot ? '打卡' : '交互';
+    interactButton.setAttribute('aria-label', scenicSpot ? '风景打卡' : '交互');
+    element('scenic-status').textContent = scenicMemory ? '月光纪念 1 / 1' : '月光纪念 0 / 1';
+    const canInteract = Boolean(scenicSpot) || player.carrying !== null || world.level.levers.some(lever => Math.abs(lever.x - player.x) < 66 && Math.abs(lever.y - player.y) < 75) || world.crates.some(crate => crate.carrier === null && Math.abs(crate.x - player.x) < 70 && Math.abs(crate.y - player.y) < 65);
     document.querySelector('[data-touch="interact"]').classList.toggle('is-near', canInteract && status === 'playing');
   }
 
@@ -580,7 +677,8 @@
     previousTime = timestamp;
     if (status !== 'paused' && !document.hidden) animationTime += deltaTime;
     const skyName = art.updateSky(status === 'paused' || document.hidden ? 0 : deltaTime, comfort.sky, comfort.reduceMotion);
-    element('sky-label').textContent = `${skyName} · ${comfort.reduceMotion ? '装饰静止' : comfort.sky === 'auto' ? '天空约五分钟循环' : '留住这一刻'}`;
+    if (status === 'playing') scenicEffectTime = Math.max(0, scenicEffectTime - deltaTime);
+    element('sky-label').textContent = world.level.theme === 'castle' ? '月影古堡 · 固定夜景' : `${skyName} · ${comfort.reduceMotion ? '装饰静止' : comfort.sky === 'auto' ? '天空约五分钟循环' : '留住这一刻'}`;
     element('timer').hidden = comfort.hideTimer;
     element('timer').previousElementSibling.hidden = comfort.hideTimer;
     document.querySelector('.timer-divider').hidden = comfort.hideTimer;

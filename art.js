@@ -56,7 +56,70 @@
     return skyState().name;
   }
 
+  function drawCastleBackground(context, camera, width) {
+    const gradient = context.createLinearGradient(0, 0, 0, 540);
+    gradient.addColorStop(0, '#11192f');
+    gradient.addColorStop(.6, '#39436c');
+    gradient.addColorStop(1, '#738198');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, 540);
+    for (let index = 0; index < 70; index += 1) {
+      const position = ((index * 137 - camera * .06) % 1100 + 1100) % 1100;
+      context.fillStyle = index % 3 ? '#c3d7ed88' : '#fff0ce';
+      context.fillRect(position, 20 + index * 47 % 220, 1.5, 1.5);
+    }
+    const moonX = 740 - camera * .035;
+    const halo = context.createRadialGradient(moonX, 98, 15, moonX, 98, 145);
+    halo.addColorStop(0, '#d2deff55');
+    halo.addColorStop(1, '#d2deff00');
+    context.fillStyle = halo;
+    context.fillRect(moonX - 145, 0, 290, 250);
+    context.fillStyle = '#f3ebd5';
+    context.beginPath(); context.arc(moonX, 98, 38, 0, Math.PI * 2); context.fill();
+    context.fillStyle = '#c5c8d03b';
+    for (const [offsetX, offsetY, radius] of [[-14, -9, 8], [13, 15, 10], [15, -17, 5]]) {
+      context.beginPath(); context.arc(moonX + offsetX, 98 + offsetY, radius, 0, Math.PI * 2); context.fill();
+    }
+    for (let layer = 0; layer < 2; layer += 1) {
+      const parallax = layer === 0 ? .16 : .32;
+      for (let index = -1; index < 9; index += 1) {
+        const towerX = index * 260 - (camera * parallax % 260);
+        const towerTop = 220 + (index + 9) % 3 * 34 - layer * 15;
+        context.fillStyle = layer === 0 ? '#293351' : '#202b46';
+        context.fillRect(towerX, towerTop, 100, 320);
+        context.fillRect(towerX + 100, towerTop + 95, 160, 225);
+        context.beginPath(); context.moveTo(towerX - 14, towerTop); context.lineTo(towerX + 50, towerTop - 72); context.lineTo(towerX + 114, towerTop); context.fill();
+        for (let merlon = 0; merlon < 4; merlon += 1) context.fillRect(towerX + 110 + merlon * 40, towerTop + 81, 20, 18);
+        context.fillStyle = layer === 0 ? '#f6cb7830' : '#f6cb7888';
+        for (let row = 0; row < 3; row += 1) {
+          context.beginPath(); context.roundRect(towerX + 38, towerTop + 25 + row * 65, 20, 34, [10, 10, 0, 0]); context.fill();
+        }
+      }
+    }
+    context.fillStyle = '#b7c8e512';
+    for (let index = 0; index < 4; index += 1) {
+      context.beginPath(); context.ellipse(index * 310 - camera * .04 % 310, 408 + index % 2 * 24, 250, 22, 0, 0, Math.PI * 2); context.fill();
+    }
+    return true;
+  }
+
+  function drawCastleStone(context, stone) {
+    context.save();
+    context.beginPath(); context.roundRect(stone.x, stone.y, stone.w, stone.h, 4); context.clip();
+    context.fillStyle = '#424b65'; context.fillRect(stone.x, stone.y, stone.w, stone.h);
+    context.strokeStyle = '#252f49'; context.lineWidth = 2;
+    for (let row = 0; row < stone.h / 25; row += 1) {
+      for (let column = -1; column < stone.w / 55; column += 1) {
+        context.strokeRect(stone.x + column * 55 + row % 2 * 27, stone.y + row * 25, 55, 25);
+      }
+    }
+    context.fillStyle = '#b4c5d6'; context.fillRect(stone.x, stone.y, stone.w, 5);
+    context.fillStyle = '#859eac'; context.fillRect(stone.x, stone.y + 5, stone.w, 4);
+    context.restore();
+  }
+
   function drawBackground(context, camera, width, theme) {
+    if (theme === 3) return drawCastleBackground(context, camera, width);
     if (!images.has(`sky-${theme}`) || !images.has(`hills-${theme}`)) return false;
     const state = skyState();
     const gradient = context.createLinearGradient(0, 0, 0, 540);
@@ -159,5 +222,5 @@
     return true;
   }
 
-  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer };
+  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer, drawCastleStone };
 })();

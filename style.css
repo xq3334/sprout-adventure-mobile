@@ -90,12 +90,12 @@ h2 { margin: 7px 0 0; font-size: 22px; font-weight: 500; }
 .movement-pad, .action-pad { position: absolute; bottom: calc(var(--safe-bottom) + 24px); display: flex; align-items: flex-end; gap: 13px; }
 .movement-pad { left: var(--safe-left); }
 .action-pad { right: var(--safe-right); }
-.touch-controls button { pointer-events: auto; width: var(--control-size); height: var(--control-size); border: 2px solid #fffcefbc; border-radius: 24px; background: #fffaf09c; box-shadow: 0 5px 0 #75826242, inset 0 1px 0 #ffffffa6; color: #63795d; display: flex; flex-direction: column; justify-content: center; align-items: center; touch-action: none; }
+.touch-controls button { pointer-events: auto; width: var(--control-size); height: var(--control-size); border: 2px solid #fffcefbc; border-radius: 24px; background: #fffaf040; box-shadow: 0 3px 0 #75826222, inset 0 1px 0 #ffffff55; color: #405638; display: flex; flex-direction: column; justify-content: center; align-items: center; touch-action: none; }
 .touch-controls button span { font-family: system-ui, sans-serif; font-size: 34px; line-height: 1; }
 .touch-controls button small { font-size: 9px; margin-top: 3px; letter-spacing: 2px; }
-.touch-controls .jump-button { width: calc(var(--control-size) + 14px); height: calc(var(--control-size) + 14px); border-radius: 50%; background: #83986bcc; color: #fff9e4; }
+.touch-controls .jump-button { width: calc(var(--control-size) + 14px); height: calc(var(--control-size) + 14px); border-radius: 50%; background: #83986b55; color: #314d32; }
 .touch-controls .interact-button { width: calc(var(--control-size) - 8px); height: calc(var(--control-size) - 8px); border-radius: 50%; }
-.touch-controls button.is-held { background: #54794ce0; color: white; box-shadow: 0 2px 0 #50654670, inset 0 2px 8px #243b2822; transform: translateY(3px); }
+.touch-controls button.is-held { background: #54794c70; color: white; box-shadow: 0 2px 0 #50654670, inset 0 2px 8px #243b2822; transform: translateY(3px); }
 .touch-controls .is-near { border-color: #f5d58a; box-shadow: 0 0 0 4px #f6d78438, 0 5px 0 #75826242; }
 body:not([data-playing=true]) .touch-controls { opacity: .35; }
 body:not([data-playing=true]) .touch-controls button { pointer-events: none; }
@@ -129,4 +129,16 @@ body[data-short=true] .level-tabs button { padding-inline: 10px; }
 .turn-arrow { position: absolute; right: -2px; top: -20px; font-size: 42px; color: #b39f75; }
 .rotation-help { margin-top: 22px; font-size: 11px; line-height: 1.7; color: #65745e; }
 body[data-orientation-blocked=true] .game-shell { visibility: hidden; }
+body[data-theme=castle] .storybook-backdrop { background: #172139; }
+body[data-theme=castle] .touch-controls button { color: #edf3ff; background: #c7d7ff25; text-shadow: 0 1px 3px #111b30; }
+body[data-theme=castle] .touch-controls button.is-held { background: #c7d7ff50; }
+body[data-theme=castle] .bottom-message { color: #d1ddf1; }
+body[data-theme=castle] .overlay { background: #10192e30; }
+.level-tabs { max-width: calc(var(--game-width) - var(--safe-left) - var(--safe-right) - 215px); overflow-x: auto; scrollbar-width: none; touch-action: pan-x; }
+.level-tabs::-webkit-scrollbar { display: none; }
+.level-tabs button { flex-shrink: 0; }
+body[data-compact=true] .level-tabs { gap: 5px; }
+body[data-compact=true] .level-tabs button { padding-inline: 9px; gap: 5px; font-size: 11px; }
+.level-tabs .challenge-tab { border-color: #a899cc; background: #d4cbe9b0; }
+#scenic-status { font-size: 10px; border-left: 1px solid #98a6b4; padding-left: 8px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
