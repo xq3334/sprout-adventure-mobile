@@ -62,6 +62,28 @@
       gems: [[360, 315], [750, 365], [985, 320], [1260, 290], [1790, 325], [2110, 320], [2330, 225], [2840, 315], [3580, 320], [4080, 400], [4440, 340], [4850, 400], [5165, 350], [5410, 400]],
       exit: { x: 5570, y: 370, w: 66, h: 80 },
       signs: [{ x: 170, y: 335, text: '正式闯关 · 月影古堡' }, { x: 475, y: 300, text: '灯柱之间是蝙蝠领地' }, { x: 1730, y: 295, text: '喷口亮起前会有预警' }, { x: 2070, y: 300, text: '登上高台 · 交互打卡' }, { x: 4140, y: 335, text: '钟楼断桥 · 等浮桥靠近' }, { x: 4700, y: 290, text: '错峰喷焰 · 分两次通过' }, { x: 5380, y: 335, text: '拉杆开启古堡出口' }]
+    },
+    {
+      name: '潮汐王宫', theme: 'palace', music: 'palace',
+      description: '戴上泡泡头盔，沿海底王宫的遗迹前进。穿过水母巡游的珊瑚庭院与潮汐断廊，在鲸歌回廊等待深海巨影经过。',
+      difficulty: '进阶闯关 · 潮汐', mechanism: '开启两道贝壳机关，进入珍珠王座',
+      hint: '仍用方向与跳跃，不需要连续游泳。箭头潮流会推人，先看水母和水柱节奏；鲸歌回廊在高处，打卡不影响通关。',
+      width: 6120, spawn: { x: 85, y: 412 },
+      terrain: [[0, 450, 680, 120], [820, 450, 620, 120], [1760, 450, 740, 120], [2650, 450, 790, 120], [3780, 450, 620, 120], [4550, 450, 740, 120], [5450, 450, 670, 120]],
+      platforms: [[280, 355, 115, 20], [1000, 350, 120, 20], [1910, 350, 120, 20], [2800, 360, 120, 20], [2920, 275, 130, 20], [3070, 190, 250, 22], [3950, 350, 115, 20], [5630, 350, 120, 20]],
+      hazards: [[1090, 432, 65, 18], [4100, 432, 70, 18], [5700, 432, 65, 18]],
+      springs: [], crates: [], plates: [],
+      movingPlatforms: [{ x: 1440, y: 420, w: 95, h: 22, range: 225, period: 4.2 }, { x: 3440, y: 415, w: 90, h: 22, range: 250, period: 3.8 }],
+      levers: [{ x: 2310, y: 412, active: false }, { x: 5840, y: 412, active: false }],
+      gates: [{ x: 2420, y: 210, w: 32, h: 240, source: 'lever', index: 0 }, { x: 5940, y: 210, w: 32, h: 240, source: 'lever', index: 1 }],
+      checkpoints: [{ x: 850, y: 450 }, { x: 1320, y: 450 }, { x: 1800, y: 450 }, { x: 2690, y: 450 }, { x: 3330, y: 450 }, { x: 3820, y: 450 }, { x: 4590, y: 450 }, { x: 5490, y: 450 }],
+      jellyfish: [{ x: 420, y: 385, w: 32, h: 38, range: 130, period: 4.2 }, { x: 1160, y: 382, w: 32, h: 38, range: 90, period: 3.8 }, { x: 2010, y: 380, w: 32, h: 38, range: 130, period: 3.6 }, { x: 4140, y: 380, w: 32, h: 38, range: 100, period: 3.4 }, { x: 5630, y: 383, w: 32, h: 38, range: 115, period: 3.5 }],
+      currents: [{ x: 1810, y: 320, w: 420, h: 130, force: -55 }, { x: 3880, y: 320, w: 410, h: 130, force: 45 }],
+      flameJets: [{ x: 930, y: 350, w: 34, h: 100, period: 4.6, activeDuration: 2, phase: 0 }, { x: 4700, y: 330, w: 36, h: 120, period: 4.4, activeDuration: 2.1, phase: 0 }, { x: 4870, y: 330, w: 36, h: 120, period: 4.4, activeDuration: 2.1, phase: 2.2 }, { x: 5130, y: 330, w: 36, h: 120, period: 4.4, activeDuration: 2.1, phase: .8 }],
+      scenicSpots: [{ id: 'whale-palace', name: '潮汐王宫 · 鲸歌回廊', x: 3210, y: 190 }],
+      gems: [[330, 315], [750, 355], [1050, 310], [1570, 340], [1960, 310], [2280, 390], [2575, 350], [2850, 320], [2980, 235], [3200, 145], [3590, 330], [4000, 310], [4475, 350], [4805, 400], [5230, 390], [5380, 350], [5680, 310], [5870, 395]],
+      exit: { x: 6020, y: 370, w: 66, h: 80 },
+      signs: [{ x: 175, y: 325, text: '泡泡头盔 · 仍用跳跃前进' }, { x: 475, y: 295, text: '水母有毒 · 观察巡游' }, { x: 1320, y: 310, text: '断廊 · 等浮石回航' }, { x: 1910, y: 280, text: '逆流区 · 跳稳再前进' }, { x: 2310, y: 330, text: '贝壳机关 · 点交互' }, { x: 2820, y: 285, text: '三级高台 · 鲸歌打卡' }, { x: 3330, y: 320, text: '深渊浮石 · 看准落点' }, { x: 4610, y: 285, text: '三重水柱 · 分段等待' }, { x: 5840, y: 320, text: '开启珍珠王座' }]
     }
   ];
 
@@ -89,6 +111,8 @@
       this.mechanismUsed = false;
       this.checkpointIndex = -1;
       this.events = [];
+      this.currents = (this.level.currents || []).map(current => ({ ...current }));
+      this.jellyfish = (this.level.jellyfish || []).map(creature => ({ ...creature, originX: creature.x, originY: creature.y }));
       this.bats = (this.level.bats || []).map(bat => ({ ...bat, originX: bat.x, originY: bat.y }));
       this.flameJets = (this.level.flameJets || []).map(jet => ({ ...jet, active: false, warning: false }));
       this.scenicSpots = (this.level.scenicSpots || []).map(spot => ({ ...spot, visited: false }));
@@ -151,7 +175,7 @@
         if (!scenicSpot.visited) {
           scenicSpot.visited = true;
           this.events.push({ type: 'scenic', id: scenicSpot.id, name: scenicSpot.name, x: scenicSpot.x, y: scenicSpot.y });
-        } else this.events.push({ type: 'hint', text: '月光纪念已留下，继续向古堡深处出发吧。' });
+        } else this.events.push({ type: 'hint', text: `${scenicSpot.name}纪念已留下，继续向前探索吧。` });
         return;
       }
       const lever = this.level.levers.find(item => Math.abs(item.x - player.x) < 66 && Math.abs(item.y - player.y) < 75);
@@ -174,7 +198,7 @@
     }
 
     updateNightObstacles() {
-      this.bats.forEach(bat => {
+      [...this.bats, ...this.jellyfish].forEach(bat => {
         const phase = this.time * Math.PI * 2 / bat.period;
         bat.x = bat.originX + (1 - Math.cos(phase)) * bat.range / 2;
         bat.y = bat.originY + Math.sin(phase * 2) * 8;
@@ -257,7 +281,8 @@
         if (input.interactPressed) this.interact(player);
         player.velocityY = Math.min(player.velocityY + PHYSICS.gravity * deltaTime, 950);
         const movementStartX = player.x;
-        this.moveBody(player, player.velocityX * deltaTime, 'x', this.getSolids());
+        const currentForce = this.currents.reduce((force, current) => force + (overlaps(player, current) ? current.force : 0), 0);
+        this.moveBody(player, (player.velocityX + currentForce) * deltaTime, 'x', this.getSolids());
         player.x = Math.max(0, Math.min(this.level.width - player.w, player.x));
         if (wasGrounded) player.walkDistance += Math.abs(player.x - movementStartX);
         const landingSpeed = player.velocityY;
@@ -281,7 +306,7 @@
           crate.x = player.x + player.w / 2 - crate.w / 2;
           crate.y = player.y - crate.h - 8;
         }
-        const touchingDanger = this.hazards.some(hazard => overlaps(player, hazard)) || this.bats.some(bat => overlaps(player, bat)) || this.flameJets.some(jet => jet.active && overlaps(player, jet));
+        const touchingDanger = this.hazards.some(hazard => overlaps(player, hazard)) || this.jellyfish.some(creature => overlaps(player, creature)) || this.bats.some(bat => overlaps(player, bat)) || this.flameJets.some(jet => jet.active && overlaps(player, jet));
         if (player.y > 610 || (player.invincible <= 0 && touchingDanger)) {
           this.respawn(player);
           return;

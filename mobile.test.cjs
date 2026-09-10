@@ -306,11 +306,12 @@ test('every map selects a distinct soundtrack and synthesis respects pause', () 
   const browser = {};
   runInNewContext(readFileSync(require.resolve('./audio.js'), 'utf8'), { window: browser });
   const audio = new browser.CozyAudio();
-  assert.equal(new Set(LEVELS.map(level => level.music)).size, 4);
+  assert.equal(new Set(LEVELS.map(level => level.music)).size, LEVELS.length);
   for (const level of LEVELS) {
     audio.setScene(level.music);
     assert.equal(audio.scene, level.music);
   }
+  audio.setScene('castle');
   const notes = [];
   audio.context = { currentTime: 1, state: 'running' };
   audio.note = (...argumentsList) => notes.push(argumentsList);
@@ -354,8 +355,9 @@ test('scenic rendering stays bounded and restores canvas state in both motion mo
       operations = 0;
       browser.StorybookArt.drawScenicSky(drawing, elapsed, reduced);
       browser.StorybookArt.drawScenicTerrace(drawing, { x: 2320, y: 275 }, elapsed, reduced);
+      browser.StorybookArt.drawWhaleShow(drawing, elapsed, reduced);
       assert.equal(stackDepth, 0);
-      assert.ok(operations < 700);
+      assert.ok(operations < 1100);
     }
   }
 });
@@ -393,6 +395,189 @@ test('existing three-level save unlocks the fourth level', () => {
   assert.equal(getUnlockedLevel(records, LEVELS.length), 3);
   assert.equal(LEVELS[3].theme, 'castle');
   assert.ok(LEVELS[3].width > LEVELS[2].width * 2);
+});
+
+test('palace unlocks from the old four-level save and keeps its souvenir separate', () => {
+  const records = Object.fromEntries(LEVELS.slice(0, 4).map((level, index) => [index, { time: 60, gems: level.gems.length }]));
+  assert.equal(getUnlockedLevel(sanitizeProgress(records, LEVELS), LEVELS.length), 4);
+  assert.notEqual(LEVELS[4].scenicSpots[0].id, LEVELS[3].scenicSpots[0].id);
+  assert.ok(LEVELS[4].width > LEVELS[3].width);
+});
+
+test('palace jellyfish patrols and currents affect players without changing earlier levels', () => {
+  const world = new GameWorld(4);
+  for (let frame = 0; frame < 900; frame += 1) {
+    advance(world, 1);
+    for (const creature of world.jellyfish) assert.ok(creature.x >= creature.originX && creature.x <= creature.originX + creature.range);
+  }
+  const creature = world.jellyfish[0];
+  Object.assign(world.players[0], { x: creature.x, y: creature.y });
+  advance(world, 1);
+  assert.equal(world.deaths, 1);
+  const currentWorld = new GameWorld(4);
+  Object.assign(currentWorld.players[0], { x: 1840, y: 412 });
+  advance(currentWorld, 30);
+  assert.ok(currentWorld.players[0].x < 1840);
+  advance(currentWorld, 60, { right: true });
+  assert.ok(currentWorld.players[0].x > 1840);
+  assert.equal(new GameWorld(3).currents.length, 0);
+});
+
+test('whale balcony is reachable by three ordinary jumps and interaction', () => {
+  const world = new GameWorld(4);
+  const player = world.players[0];
+  Object.assign(player, { x: 2745, y: 412 });
+  advance(world, 5);
+  for (const [frames, height] of [[55, 360], [65, 275], [70, 190]]) {
+    advance(world, 1, { right: true, jumpPressed: true });
+    advance(world, frames, { right: true });
+    advance(world, 20);
+    assert.equal(player.y + player.h, height);
+    assert.equal(world.deaths, 0);
+  }
+  advance(world, 35, { right: true });
+  advance(world, 20);
+  assert.ok(world.getNearbyScenicSpot(player));
+  advance(world, 1, { interactPressed: true });
+  assert.equal(world.scenicSpots[0].visited, true);
+  advance(world, 1, { interactPressed: true });
+  assert.equal(world.events.filter(event => event.type === 'scenic').length, 1);
+});
+
+test('both palace floating bridges can be boarded and crossed without damage', () => {
+  for (const [bridgeIndex, landingX] of [[0, 1790], [1, 3810]]) {
+    const world = new GameWorld(4);
+    const player = world.players[0];
+    const bridge = world.movingPlatforms[bridgeIndex];
+    Object.assign(player, { x: bridge.originX - 60, y: 412 });
+    const runUntil = (condition, input = {}, maximumFrames = 1500) => {
+      for (let frame = 0; frame < maximumFrames && !condition(); frame += 1) advance(world, 1, input);
+      assert.ok(condition(), `Bridge ${bridgeIndex} stalled at ${player.x}, ${player.y}`);
+      assert.equal(world.deaths, 0);
+    };
+    advance(world, 5);
+    runUntil(() => bridge.x < bridge.originX + 30 && bridge.deltaX < 0);
+    advance(world, 1, { jumpPressed: true, right: true });
+    runUntil(() => player.x > bridge.originX + 50, { right: true });
+    runUntil(() => player.standingOn === bridge);
+    runUntil(() => player.x > bridge.originX + bridge.range - 35);
+    advance(world, 1, { jumpPressed: true, right: true });
+    runUntil(() => player.x > landingX && player.grounded, { right: true });
+  }
+});
+
+test('palace triple water jets allow staged crossings and the final gate works', () => {
+  const world = new GameWorld(4);
+  const player = world.players[0];
+  Object.assign(player, { x: 4600, y: 412 });
+  const runUntil = (condition, input = {}, maximumFrames = 1400) => {
+    for (let frame = 0; frame < maximumFrames && !condition(); frame += 1) advance(world, 1, input);
+    assert.ok(condition(), `Water corridor stalled at ${player.x}, ${player.y}`);
+    assert.equal(world.deaths, 0);
+  };
+  advance(world, 5);
+  for (const jet of world.flameJets.slice(1)) {
+    runUntil(() => player.x >= jet.x - 90, { right: true });
+    advance(world, 20);
+    runUntil(() => (world.time + jet.phase) % jet.period < .15);
+    runUntil(() => player.x > jet.x + jet.w + 15, { right: true });
+    advance(world, 20);
+  }
+  runUntil(() => player.x >= 5270, { right: true });
+  advance(world, 1, { jumpPressed: true, right: true });
+  runUntil(() => player.x > 5460 && player.grounded, { right: true });
+  for (const [index, lever] of world.level.levers.entries()) {
+    Object.assign(player, { x: lever.x - 30, y: 412, velocityX: 0 });
+    advance(world, 1, { interactPressed: true });
+    assert.equal(world.gates[index].open, true);
+  }
+  runUntil(() => world.completed, { right: true });
+  assert.equal(world.scenicSpots[0].visited, false);
+});
+
+test('palace music and whale cue work with cached forest music and respect mute', () => {
+  const browser = {};
+  runInNewContext(readFileSync(require.resolve('./audio.js'), 'utf8'), { window: browser });
+  const audio = new browser.CozyAudio();
+  audio.setScene('palace');
+  audio.context = { currentTime: 1, state: 'running' };
+  audio.musicBuffer = { duration: 100 };
+  audio.paused = false;
+  audio.nextBeat = 1;
+  const notes = [];
+  audio.note = (...argumentsList) => notes.push(argumentsList);
+  audio.tick();
+  assert.ok(notes.length > 0);
+  notes.length = 0;
+  audio.effect('whale');
+  assert.equal(notes.length, 2);
+  assert.notEqual(notes[0][0], notes[0][5]);
+  audio.enabled = false;
+  notes.length = 0;
+  audio.tick(); audio.effect('scenic');
+  assert.equal(notes.length, 0);
+});
+
+test('palace page integration renders, accepts touch check-in and persists the correct souvenir', () => {
+  let frameCallback;
+  let capturedWorld;
+  const elements = new Map();
+  const storage = new Map([['sprout-mobile-progress-v1', JSON.stringify(Object.fromEntries(LEVELS.slice(0, 4).map((level, index) => [index, { gems: 0, time: 60 }])))] ]);
+  const drawing = new Proxy({}, {
+    get(target, property) {
+      if (property.startsWith('create')) return () => ({ addColorStop() {} });
+      return () => {};
+    },
+    set() { return true; }
+  });
+  const getElement = identifier => {
+    if (!elements.has(identifier)) elements.set(identifier, {
+      dataset: {}, classList: { toggle() {} }, previousElementSibling: {},
+      addEventListener(type, callback) { this[type] = callback; },
+      setAttribute() {}, setPointerCapture() {}, focus() {},
+      querySelector(selector) { return getElement(`${identifier}:${selector}`); },
+      getContext() { return drawing; }
+    });
+    return elements.get(identifier);
+  };
+  const tabs = LEVELS.map((level, index) => Object.assign(getElement(`tab${index}`), { dataset: { level: String(index) } }));
+  const touches = ['left', 'right', 'jump', 'interact'].map(action => Object.assign(getElement(`[data-touch="${action}"]`), { dataset: { touch: action } }));
+  const document = {
+    body: { dataset: {} }, hidden: false,
+    getElementById: getElement, querySelector: getElement,
+    querySelectorAll(selector) {
+      if (selector === '[data-level]') return tabs;
+      if (selector === '[data-touch]') return touches;
+      return [];
+    },
+    addEventListener() {}
+  };
+  const window = {
+    SproutEngine: { LEVELS, GameWorld: class extends GameWorld { constructor(...argumentsList) { super(...argumentsList); capturedWorld = this; } } },
+    SproutMobile: { ActionInput, sanitizeProgress, getUnlockedLevel },
+    matchMedia() { return { matches: false }; }, addEventListener() {}
+  };
+  const sandbox = { window, document, Image: class {}, localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }, requestAnimationFrame(callback) { frameCallback = callback; } };
+  runInNewContext(readFileSync(require.resolve('./art.js'), 'utf8'), sandbox);
+  runInNewContext(readFileSync(require.resolve('./game.js'), 'utf8'), sandbox);
+  tabs[4].click();
+  assert.equal(document.body.dataset.theme, 'palace');
+  assert.equal(capturedWorld.levelIndex, 4);
+  const player = capturedWorld.players[0];
+  Object.assign(player, { x: 3195, y: 152 });
+  advance(capturedWorld, 5);
+  frameCallback(1000);
+  getElement('[data-touch="interact"]').pointerdown({ preventDefault() {}, pointerId: 7 });
+  frameCallback(1020);
+  frameCallback(1200);
+  assert.equal(storage.get('sprout-mobile-whale-memory-v1'), 'true');
+  assert.equal(storage.has('sprout-mobile-moon-memory-v1'), false);
+  assert.equal(getElement('scenic-status').textContent, '鲸歌纪念 1 / 1');
+  getElement('pause-button').click();
+  assert.equal(getElement('overlay-title').textContent, '在珊瑚间歇一会。');
+  tabs[3].click();
+  frameCallback(1400);
+  assert.equal(getElement('scenic-status').textContent, '月光纪念 0 / 1');
 });
 
 test('checkpoint respawn and completion events work in all levels', () => {

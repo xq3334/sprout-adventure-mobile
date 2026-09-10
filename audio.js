@@ -12,7 +12,10 @@
       chords: [[43, 50, 59], [50, 57, 66], [40, 47, 55], [48, 55, 62]] },
     castle: { name: '古堡 · 月下钟声', beat: .64, voice: 'sine', decay: 2.4, wind: 260,
       melody: [74, null, 81, 77, null, 76, 74, null, 70, null, 77, null, 81, 79, 77, null, 67, null, 74, 77, null, 79, 77, null, 69, null, 73, 76, 81, null, 73, null],
-      chords: [[38, 45, 53], [34, 41, 50], [31, 38, 46], [33, 40, 49]] }
+      chords: [[38, 45, 53], [34, 41, 50], [31, 38, 46], [33, 40, 49]] },
+    palace: { name: '王宫 · 深海回响', beat: .72, voice: 'sine', decay: 2.8, wind: 180,
+      melody: [76, null, 83, 78, null, 81, 78, null, 74, null, 81, 78, 76, null, 74, null, 71, 78, null, 83, 81, null, 78, null, 73, null, 80, 83, null, 78, 76, null],
+      chords: [[40, 47, 54], [38, 45, 52], [35, 42, 50], [37, 44, 52]] }
   };
 
   class CozyAudio {
@@ -251,7 +254,7 @@
     }
 
     updateEnvironment(world) {
-      if (this.scene !== 'castle' || !this.context || this.paused || !this.enabled) return;
+      if (!['castle', 'palace'].includes(this.scene) || !this.context || this.paused || !this.enabled) return;
       const player = world.players[0];
       const nearbyJet = world.flameJets.find(jet => Math.abs(jet.x - player.x) < 210 && jet.warning);
       const nearbyFlame = world.flameJets.find(jet => Math.abs(jet.x - player.x) < 150 && jet.active);
@@ -284,6 +287,15 @@
       const sceneCues = {
         treehouse: { land: [[48, 0, .09, .08]], interact: [[62, 0, .12, .1], [69, .1, .16, .07]] },
         clouds: { jump: [[74, 0, .35, .09, 86]], land: [[67, 0, .3, .05]], gem: [[86, 0, 1.2, .09], [93, .16, 1.4, .05]] },
+        palace: {
+          jump: [[64, 0, .26, .085, 81]], land: [[45, 0, .25, .055, 40]],
+          gem: [[83, 0, 1.2, .09], [90, .15, 1.4, .05]],
+          interact: [[52, 0, .8, .08], [76, .18, 1, .055]],
+          scenic: [[40, 0, 3.5, .07], [76, .2, 2.8, .08], [83, .65, 3, .06], [90, 1.1, 2.4, .04]],
+          whale: [[45, 0, 2.6, .085, 52], [57, .5, 2.8, .035, 49]],
+          flameWarning: [[76, 0, .18, .05, 83], [76, .24, .18, .04, 83]],
+          flame: [[52, 0, .45, .055, 76], [64, .16, .3, .025, 81]]
+        },
         castle: { land: [[38, 0, .15, .085], [57, .025, .22, .025]], interact: [[38, 0, .6, .08], [50, .12, .7, .06]], gem: [[81, 0, 1, .09], [86, .15, 1.3, .06]] }
       };
       const waveform = this.scene === 'treehouse' || type === 'flame' || type === 'wings' ? 'triangle' : 'sine';

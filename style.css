@@ -129,6 +129,12 @@ body[data-short=true] .level-tabs button { padding-inline: 10px; }
 .turn-arrow { position: absolute; right: -2px; top: -20px; font-size: 42px; color: #b39f75; }
 .rotation-help { margin-top: 22px; font-size: 11px; line-height: 1.7; color: #65745e; }
 body[data-orientation-blocked=true] .game-shell { visibility: hidden; }
+body[data-theme=palace] .storybook-backdrop { background: #0b3349; }
+body[data-theme=palace] .touch-controls button { color: #e0fff5; background: #a4efd925; text-shadow: 0 1px 3px #082b3b; }
+body[data-theme=palace] .touch-controls button.is-held { background: #a4efd950; }
+body[data-theme=palace] .bottom-message { color: #d1f1e8; }
+body[data-theme=palace] .overlay { background: #082b3b30; }
+body[data-theme=palace] .challenge-tab.active { background: #b0dfd2; border-color: #77b9b0; }
 body[data-theme=castle] .storybook-backdrop { background: #172139; }
 body[data-theme=castle] .touch-controls button { color: #edf3ff; background: #c7d7ff25; text-shadow: 0 1px 3px #111b30; }
 body[data-theme=castle] .touch-controls button.is-held { background: #c7d7ff50; }

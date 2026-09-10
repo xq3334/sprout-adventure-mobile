@@ -12,8 +12,11 @@
   const particles = [];
   const playerCount = 1;
   let scenicEffectTime = 0;
-  let scenicMemory = false;
-  try { scenicMemory = localStorage.getItem('sprout-mobile-moon-memory-v1') === 'true'; } catch {}
+  const scenicMemories = new Set();
+  const scenicStorageKeys = { 'moon-castle': 'sprout-mobile-moon-memory-v1', 'whale-palace': 'sprout-mobile-whale-memory-v1' };
+  for (const [identifier, key] of Object.entries(scenicStorageKeys)) {
+    try { if (localStorage.getItem(key) === 'true') scenicMemories.add(identifier); } catch {}
+  }
   let world;
   let status = 'welcome';
   let animationTime = 0;
@@ -169,6 +172,7 @@
   }
 
   function drawTerrain(terrain) {
+    if (world.level.theme === 'palace') { art.drawPalaceStone(context, terrain); return; }
     if (world.level.theme === 'castle') { art.drawCastleStone(context, terrain); return; }
     if (art.drawTerrain(context, terrain)) return;
     const { x, y, w, h } = terrain;
@@ -189,6 +193,11 @@
   }
 
   function drawPlatform(platform, moving = false) {
+    if (world.level.theme === 'palace') {
+      art.drawPalaceStone(context, platform);
+      if (moving) ellipse(platform.x + platform.w / 2, platform.y + 28, 32, 6, '#8af6df55');
+      return;
+    }
     if (world.level.theme === 'castle') {
       art.drawCastleStone(context, platform);
       if (moving) {
@@ -211,6 +220,28 @@
   }
 
   function drawNightObjects() {
+    const underwater = world.level.theme === 'palace';
+    world.currents.forEach(current => {
+      roundRectangle(current.x, current.y, current.w, current.h, 12, '#74ded210');
+      for (let offset = 25; offset < current.w - 20; offset += 58) {
+        const direction = Math.sign(current.force);
+        const position = current.x + offset + (comfort.reduceMotion ? 0 : Math.sin(animationTime * 2) * 7);
+        line([[position - direction * 9, current.y + 58], [position + direction * 7, current.y + 65], [position - direction * 9, current.y + 72]], '#b8fff073', 2);
+      }
+    });
+    world.jellyfish.forEach(creature => {
+      const centerX = creature.x + creature.w / 2;
+      const centerY = creature.y + 13;
+      ellipse(centerX, centerY, 25, 24, '#f295ff20');
+      for (let tentacle = 0; tentacle < 4; tentacle += 1) {
+        const position = creature.x + 4 + tentacle * 8;
+        const sway = comfort.reduceMotion ? 0 : Math.sin(world.time * 5 + tentacle) * 3;
+        line([[position, creature.y + 18], [position + sway, creature.y + 28], [position - sway, creature.y + creature.h]], '#efc0ff', 1.6);
+      }
+      context.beginPath(); context.ellipse(centerX, centerY + 5, 16, 18, 0, Math.PI, Math.PI * 2);
+      context.closePath(); context.fillStyle = '#bd79dac9'; context.fill(); context.strokeStyle = '#f0c9ff'; context.lineWidth = 1.5; context.stroke();
+      ellipse(centerX - 5, centerY - 3, 4, 3, '#ffe8ff88');
+    });
     world.bats.forEach(bat => {
       for (const boundary of [bat.originX, bat.originX + bat.range + bat.w]) {
         line([[boundary, 450], [boundary, 419]], '#7e8ba5', 3);
@@ -236,6 +267,16 @@
     world.flameJets.forEach(jet => {
       roundRectangle(jet.x - 6, jet.y + jet.h - 6, jet.w + 12, 9, 3, '#8994ac', '#c2cfdf');
       if (jet.warning) { ellipse(jet.x + jet.w / 2, 441, 24, 8, '#ffd17d77'); text('!', jet.x + jet.w / 2, 421, 20, '#ffe1a5'); }
+      if (jet.active && underwater) {
+        const water = context.createLinearGradient(0, jet.y, 0, jet.y + jet.h);
+        water.addColorStop(0, '#d1ffef88'); water.addColorStop(1, '#55dceac9');
+        roundRectangle(jet.x, jet.y, jet.w, jet.h, 8, water, '#b9fff0');
+        for (let bubble = 0; bubble < 5; bubble += 1) {
+          const rise = comfort.reduceMotion ? bubble * 21 : (animationTime * 95 + bubble * 23) % jet.h;
+          ellipse(jet.x + 9 + bubble % 2 * 17, jet.y + jet.h - rise, 3, 4, '#edfff3bb');
+        }
+        return;
+      }
       if (jet.active) {
         const centerX = jet.x + jet.w / 2;
         context.beginPath(); context.moveTo(jet.x, jet.y + jet.h);
@@ -250,13 +291,33 @@
       ellipse(spot.x, spot.y - 2, 47, 8, '#b0e7ff44');
       line([[spot.x - 90, spot.y], [spot.x - 90, spot.y - 58], [spot.x + 90, spot.y - 58], [spot.x + 90, spot.y]], '#b6c8e1', 3);
       for (let offset = -75; offset <= 75; offset += 25) line([[spot.x + offset, spot.y], [spot.x + offset, spot.y - 45]], '#7e91b3', 2);
-      ellipse(spot.x, spot.y - 76, 19, 19, '#d5e9ff');
-      ellipse(spot.x + 8, spot.y - 82, 17, 17, '#39436c');
-      text(spot.visited ? '月光留影已完成' : '观月台 · 点交互留影', spot.x, spot.y - 109, 12, '#ecf0ff');
+      if (underwater) {
+        ellipse(spot.x, spot.y - 74, 17, 17, '#d9ffe9');
+        text(spot.visited ? '鲸歌留影已完成' : '鲸歌回廊 · 点交互留影', spot.x, spot.y - 104, 12, '#ddfff1');
+      } else {
+        ellipse(spot.x, spot.y - 76, 19, 19, '#d5e9ff');
+        ellipse(spot.x + 8, spot.y - 82, 17, 17, '#39436c');
+        text(spot.visited ? '月光留影已完成' : '观月台 · 点交互留影', spot.x, spot.y - 109, 12, '#ecf0ff');
+      }
     });
   }
 
   function drawDecorations() {
+    if (world.level.theme === 'palace') {
+      world.terrain.forEach(terrain => {
+        for (let position = terrain.x + 55; position < terrain.x + terrain.w - 20; position += 175) {
+          const sway = comfort.reduceMotion ? 0 : Math.sin(animationTime * 1.5 + position) * 5;
+          for (let branch = -1; branch <= 1; branch += 1) {
+            line([[position, terrain.y], [position + branch * 12, terrain.y - 18], [position + branch * 18 + sway, terrain.y - 40 - Math.abs(branch) * 8]], '#d79bb18c', 4);
+            ellipse(position + branch * 18 + sway, terrain.y - 40 - Math.abs(branch) * 8, 3, 3, '#f1c7c599');
+          }
+          ellipse(position + 45, terrain.y - 6, 15, 8, '#b4d9cc');
+          line([[position + 45, terrain.y], [position + 38, terrain.y - 12]], '#609f9e', 1);
+          line([[position + 45, terrain.y], [position + 50, terrain.y - 12]], '#609f9e', 1);
+        }
+      });
+      return;
+    }
     if (world.level.theme === 'castle') {
       world.terrain.forEach(terrain => {
         for (let position = terrain.x + 70; position < terrain.x + terrain.w; position += 240) {
@@ -315,6 +376,15 @@
       text(plate.active ? '已触发' : '压力踏板', plate.x + plate.w / 2, plate.y + 36, 10, '#77684d');
     });
     world.level.levers.forEach(lever => {
+      if (world.level.theme === 'palace') {
+        ellipse(lever.x + 11, lever.y + 29, 23, 9, '#9fcfc5');
+        context.beginPath(); context.ellipse(lever.x + 11, lever.y + 22, 23, 25, 0, Math.PI, Math.PI * 2); context.closePath();
+        context.fillStyle = lever.active ? '#8bded0' : '#d5b9ce'; context.fill();
+        for (const offset of [-15, -7, 7, 15]) line([[lever.x + 11, lever.y + 22], [lever.x + 11 + offset, lever.y + 3]], '#fff2cf88', 1);
+        ellipse(lever.x + 11, lever.y + 16, 7, 7, lever.active ? '#e1fff0' : '#ffe6ac');
+        text('交互', lever.x + 11, lever.y - 16, 11, '#e1fff0');
+        return;
+      }
       roundRectangle(lever.x - 6, lever.y + 27, 35, 11, 4, '#a69166');
       line([[lever.x + 11, lever.y + 28], [lever.x + (lever.active ? 28 : -4), lever.y + 2]], '#8d8061', 6);
       ellipse(lever.x + (lever.active ? 28 : -4), lever.y + 2, 8, 8, lever.active ? '#accb77' : '#e2ba68');
@@ -360,6 +430,14 @@
 
   function drawExit() {
     const exit = world.level.exit;
+    if (world.level.theme === 'palace') {
+      roundRectangle(exit.x - 8, exit.y - 18, 82, 100, [38, 38, 6, 6], '#c4c9a0', '#e5f3d4');
+      roundRectangle(exit.x + 2, exit.y - 8, 62, 90, [30, 30, 4, 4], '#285976');
+      ellipse(exit.x + 33, exit.y + 35, 21, 34, '#8fffe84d');
+      ellipse(exit.x + 33, exit.y - 28, 12, 12, '#efffdd');
+      text('珍珠王座', exit.x + 33, exit.y + 108, 11, '#defff0');
+      return;
+    }
     if (art.drawImage(context, 'portal', exit.x - 25, exit.y - 51, 116, 140)) {
       text('下一段冒险', exit.x + 33, exit.y + 108, 11, '#fff3e5');
       drawStar(exit.x + 33, exit.y - 43 + Math.sin(animationTime * 2) * 3, 8, '#fff3ca');
@@ -419,7 +497,10 @@
     context.clip();
     context.translate(viewX, 0);
     drawBackground(camera, viewWidth);
-    if (scenicEffectTime > 0) art.drawScenicSky(context, art.SCENIC_DURATION - scenicEffectTime, comfort.reduceMotion);
+    if (scenicEffectTime > 0) {
+      const drawShow = world.level.theme === 'palace' ? art.drawWhaleShow : art.drawScenicSky;
+      drawShow(context, art.SCENIC_DURATION - scenicEffectTime, comfort.reduceMotion);
+    }
     context.save();
     context.translate(-camera, 0);
     drawDecorations();
@@ -440,7 +521,15 @@
       drawStar(gem.x, gem.y + bob, 11, '#f8dc87');
       drawStar(gem.x - 2, gem.y - 2 + bob, 5, '#fff2b8');
     });
-    world.players.forEach(drawPlayer);
+    world.players.forEach(player => {
+      drawPlayer(player);
+      if (world.level.theme === 'palace' && !(player.invincible > 0 && Math.floor(animationTime * 14) % 2 === 0)) {
+        ellipse(player.x + player.w / 2, player.y + 6, 29, 31, '#bbfff414');
+        context.beginPath(); context.ellipse(player.x + player.w / 2, player.y + 6, 29, 31, 0, 0, Math.PI * 2);
+        context.strokeStyle = '#c7fff1b3'; context.lineWidth = 1.5; context.stroke();
+        line([[player.x - 5, player.y - 6], [player.x - 2, player.y - 12], [player.x + 4, player.y - 16]], '#effff0bb', 2);
+      }
+    });
     particles.forEach(particle => {
       context.globalAlpha = Math.max(0, particle.life);
       ellipse(particle.x, particle.y, particle.size, particle.size, particle.color);
@@ -464,8 +553,9 @@
       context.save();
       context.globalAlpha = Math.min(1, elapsed, scenicEffectTime);
       roundRectangle(320, 342, 320, 58, 12, '#142139a8', '#b2ccec66');
-      text('月影古堡 · 星河为你停留', 480, 366, 16, '#f5edd9');
-      text('月光纪念已收集  /  观月台', 480, 386, 10, '#c3d7f1');
+      const underwater = world.level.theme === 'palace';
+      text(underwater ? '潮汐王宫 · 与鲸同游' : '月影古堡 · 星河为你停留', 480, 366, 16, '#f5edd9');
+      text(underwater ? '鲸歌纪念已收集  /  鲸歌回廊' : '月光纪念已收集  /  观月台', 480, 386, 10, '#c3d7f1');
       context.restore();
     }
   }
@@ -517,7 +607,7 @@
     scenicEffectTime = 0;
     document.body.dataset.theme = world.level.theme || 'forest';
     element('scenic-status').hidden = !world.scenicSpots.length;
-    element('sky-mode').disabled = world.level.theme === 'castle';
+    element('sky-mode').disabled = ['castle', 'palace'].includes(world.level.theme);
     particles.length = 0;
     accumulator = 0;
     toastTime = 0;
@@ -551,7 +641,9 @@
     if (status === 'playing') {
       status = 'paused';
       cozyAudio.setPaused(true);
-      showOverlay(world.level.theme === 'castle' ? '在月光下歇一会。' : '在树荫下歇一会。', world.level.theme === 'castle' ? '钟声暂歇，月光仍在。\n准备好了，再向钟楼出发。' : '风还在吹，森林也不会离开。\n准备好了，就继续向前。', '继续探险');
+      if (world.level.theme === 'palace') {
+        showOverlay('在珊瑚间歇一会。', '潮声暂歇，深海微光仍在。\n准备好了，再向王宫出发。', '继续探险');
+      } else showOverlay(world.level.theme === 'castle' ? '在月光下歇一会。' : '在树荫下歇一会。', world.level.theme === 'castle' ? '钟声暂歇，月光仍在。\n准备好了，再向钟楼出发。' : '风还在吹，森林也不会离开。\n准备好了，就继续向前。', '继续探险');
       element('pause-button').textContent = '▷';
       element('pause-button').setAttribute('aria-label', '继续游戏');
     } else startGame();
@@ -623,9 +715,9 @@
       }
       if (event.type === 'scenic') {
         scenicEffectTime = art.SCENIC_DURATION;
-        scenicMemory = true;
+        scenicMemories.add(event.id);
         let saved = true;
-        try { localStorage.setItem('sprout-mobile-moon-memory-v1', 'true'); } catch { saved = false; }
+        try { localStorage.setItem(scenicStorageKeys[event.id], 'true'); } catch { saved = false; }
         showToast(`${event.name} · ${saved ? '纪念已存入本机旅行册' : '已打卡，本机暂不能保存'}`);
         if (!comfort.reduceMotion) {
           for (let index = 0; index < 45; index += 1) {
@@ -670,7 +762,8 @@
     const interactButton = document.querySelector('[data-touch="interact"]');
     interactButton.querySelector('small').textContent = scenicSpot ? '打卡' : '交互';
     interactButton.setAttribute('aria-label', scenicSpot ? '风景打卡' : '交互');
-    element('scenic-status').textContent = scenicMemory ? '月光纪念 1 / 1' : '月光纪念 0 / 1';
+    const memoryName = world.level.theme === 'palace' ? '鲸歌纪念' : '月光纪念';
+    element('scenic-status').textContent = `${memoryName} ${scenicMemories.has(world.scenicSpots[0]?.id) ? 1 : 0} / 1`;
     const canInteract = Boolean(scenicSpot) || player.carrying !== null || world.level.levers.some(lever => Math.abs(lever.x - player.x) < 66 && Math.abs(lever.y - player.y) < 75) || world.crates.some(crate => crate.carrier === null && Math.abs(crate.x - player.x) < 70 && Math.abs(crate.y - player.y) < 65);
     document.querySelector('[data-touch="interact"]').classList.toggle('is-near', canInteract && status === 'playing');
   }
@@ -688,16 +781,16 @@
       const previousElapsed = art.SCENIC_DURATION - scenicEffectTime;
       scenicEffectTime = Math.max(0, scenicEffectTime - deltaTime);
       const elapsed = art.SCENIC_DURATION - scenicEffectTime;
-      if (!comfort.reduceMotion) {
+      if (!comfort.reduceMotion && world.level.theme === 'castle') {
         for (const meteor of art.meteorShow) {
           if (previousElapsed < meteor.delay && elapsed >= meteor.delay) playSound('meteor');
         }
       }
-      if (previousElapsed < 3 && elapsed >= 3) playSound('constellation');
+      if (previousElapsed < 3 && elapsed >= 3) playSound(world.level.theme === 'palace' ? 'whale' : 'constellation');
       const spot = world.scenicSpots[0];
       if (!spot || Math.abs(world.players[0].x - spot.x) > 330 || Math.abs(world.players[0].y + world.players[0].h - spot.y) > 85) scenicEffectTime = 0;
     }
-    element('sky-label').textContent = world.level.theme === 'castle' ? '月影古堡 · 固定夜景' : `${skyName} · ${comfort.reduceMotion ? '装饰静止' : comfort.sky === 'auto' ? '天空约五分钟循环' : '留住这一刻'}`;
+    element('sky-label').textContent = world.level.theme === 'palace' ? '潮汐王宫 · 深海微光' : world.level.theme === 'castle' ? '月影古堡 · 固定夜景' : `${skyName} · ${comfort.reduceMotion ? '装饰静止' : comfort.sky === 'auto' ? '天空约五分钟循环' : '留住这一刻'}`;
     element('timer').hidden = comfort.hideTimer;
     element('timer').previousElementSibling.hidden = comfort.hideTimer;
     document.querySelector('.timer-divider').hidden = comfort.hideTimer;

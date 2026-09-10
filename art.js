@@ -233,7 +233,101 @@
     context.restore();
   }
 
+  function drawPalaceBackground(context, camera, width) {
+    const water = context.createLinearGradient(0, 0, 0, 540);
+    water.addColorStop(0, '#176782'); water.addColorStop(.45, '#12465f'); water.addColorStop(1, '#081e3b');
+    context.fillStyle = water; context.fillRect(0, 0, width, 540);
+    for (let beam = 0; beam < 6; beam += 1) {
+      const position = beam * 205 - camera * .04 % 205;
+      const light = context.createLinearGradient(0, 0, 0, 430);
+      light.addColorStop(0, '#9ff2e92b'); light.addColorStop(1, '#98deff00');
+      context.fillStyle = light;
+      context.beginPath(); context.moveTo(position, 0); context.lineTo(position + 40, 0);
+      context.lineTo(position + 175, 430); context.lineTo(position + 80, 430); context.fill();
+    }
+    for (let layer = 0; layer < 2; layer += 1) {
+      const offset = camera * (.13 + layer * .13) % 340;
+      for (let column = -1; column < 5; column += 1) {
+        const position = column * 340 - offset;
+        const roof = 170 + layer * 80;
+        context.fillStyle = layer ? '#23566c' : '#1c4b64';
+        context.beginPath(); context.ellipse(position + 140, roof, 112, 70, 0, Math.PI, Math.PI * 2); context.fill();
+        context.fillRect(position + 28, roof, 224, 360);
+        context.strokeStyle = layer ? '#61909b55' : '#46869844'; context.lineWidth = 3;
+        context.strokeRect(position + 28, roof, 224, 300);
+        for (let arch = 0; arch < 3; arch += 1) {
+          const archX = position + 48 + arch * 65;
+          context.fillStyle = '#0b304b'; context.beginPath(); context.roundRect(archX, roof + 25, 45, 220, [22, 22, 0, 0]); context.fill();
+          context.fillStyle = '#79c6bc44'; context.fillRect(archX - 8, roof + 20, 6, 235);
+          context.fillStyle = '#d8ca9866'; context.fillRect(archX - 12, roof + 15, 14, 5);
+        }
+        drawGlow(context, position + 140, roof - 5, 25, '#a4ffeb33');
+      }
+    }
+    for (let fish = 0; fish < 18; fish += 1) {
+      const positionX = ((fish * 97 + skyTime * 9 - camera * .18) % 1100 + 1100) % 1100;
+      const positionY = 120 + fish % 4 * 38 + Math.sin(fish * 2 + skyTime * .5) * 5;
+      context.fillStyle = '#a3dbd72b'; context.beginPath(); context.ellipse(positionX, positionY, 7, 3, 0, 0, Math.PI * 2); context.fill();
+      context.beginPath(); context.moveTo(positionX - 5, positionY); context.lineTo(positionX - 11, positionY - 4); context.lineTo(positionX - 11, positionY + 4); context.fill();
+    }
+    for (let bubble = 0; bubble < 32; bubble += 1) {
+      const positionX = ((bubble * 137 - camera * .3) % 1020 + 1020) % 1020;
+      const positionY = 540 - (bubble * 67 + skyTime * (8 + bubble % 4)) % 560;
+      context.strokeStyle = '#b5f5ee35'; context.lineWidth = .8;
+      context.beginPath(); context.arc(positionX, positionY, 2 + bubble % 4, 0, Math.PI * 2); context.stroke();
+    }
+    return true;
+  }
+
+  function drawPalaceStone(context, stone) {
+    context.save();
+    context.beginPath(); context.roundRect(stone.x, stone.y, stone.w, stone.h, 5); context.clip();
+    context.fillStyle = '#38777f'; context.fillRect(stone.x, stone.y, stone.w, stone.h);
+    context.strokeStyle = '#205263'; context.lineWidth = 1.5;
+    for (let row = 0; row < stone.h / 28; row += 1) {
+      for (let column = -1; column < stone.w / 64; column += 1) context.strokeRect(stone.x + column * 64 + row % 2 * 32, stone.y + row * 28, 64, 28);
+    }
+    context.fillStyle = '#bde7da'; context.fillRect(stone.x, stone.y, stone.w, 5);
+    context.fillStyle = '#c4b78b'; context.fillRect(stone.x, stone.y + 7, stone.w, 2);
+    context.restore();
+  }
+
+  function drawWhaleShow(context, elapsed, reduceMotion) {
+    if (elapsed < 0 || elapsed >= SCENIC_DURATION) return;
+    const envelope = Math.min(1, elapsed / 1.5, (SCENIC_DURATION - elapsed) / 2);
+    context.save(); context.globalAlpha = envelope;
+    drawGlow(context, 540, 150, 230, '#9effdf33');
+    const positionX = reduceMotion ? 545 : 200 + elapsed * 55;
+    const positionY = 115 + (reduceMotion ? 0 : Math.sin(elapsed * .5) * 12);
+    context.translate(positionX, positionY);
+    const skin = context.createLinearGradient(0, -45, 0, 50);
+    skin.addColorStop(0, '#479cb6'); skin.addColorStop(.65, '#28627e'); skin.addColorStop(1, '#9bd8d2');
+    context.fillStyle = skin; context.strokeStyle = '#b7f1e699'; context.lineWidth = 1.5;
+    context.beginPath(); context.moveTo(-115, 0);
+    context.bezierCurveTo(-45, -65, 95, -58, 124, -10);
+    context.bezierCurveTo(150, 42, 12, 64, -95, 18);
+    context.lineTo(-160, 40); context.quadraticCurveTo(-153, 10, -125, 5);
+    context.quadraticCurveTo(-162, -7, -153, -40); context.closePath(); context.fill(); context.stroke();
+    context.beginPath(); context.moveTo(10, 23); context.quadraticCurveTo(5, 88, -39, 63); context.lineTo(-15, 25); context.fill(); context.stroke();
+    context.fillStyle = '#ecfff0'; context.beginPath(); context.arc(96, 2, 2.3, 0, Math.PI * 2); context.fill();
+    for (let stripe = 0; stripe < 4; stripe += 1) {
+      context.beginPath(); context.moveTo(30, 30 + stripe * 4); context.quadraticCurveTo(70, 42 + stripe * 2, 111, 22); context.strokeStyle = '#c3f5e655'; context.lineWidth = .7; context.stroke();
+    }
+    context.restore(); context.save(); context.globalCompositeOperation = 'screen';
+    for (let pearl = 0; pearl < 30; pearl += 1) {
+      const angle = pearl * Math.PI * 2 / 30 + (reduceMotion ? 0 : elapsed * .14);
+      const radius = 85 + pearl % 3 * 14;
+      const positionX = 470 + Math.cos(angle) * radius * 1.7;
+      const positionY = 125 + Math.sin(angle) * radius * .55;
+      context.globalAlpha = envelope * .65;
+      drawGlow(context, positionX, positionY, 8, '#b0ffe788');
+      context.fillStyle = '#eeffdf'; context.fillRect(positionX, positionY, 2, 2);
+    }
+    context.restore();
+  }
+
   function drawBackground(context, camera, width, theme) {
+    if (theme === 4) return drawPalaceBackground(context, camera, width);
     if (theme === 3) return drawCastleBackground(context, camera, width);
     if (!images.has(`sky-${theme}`) || !images.has(`hills-${theme}`)) return false;
     const state = skyState();
@@ -337,5 +431,5 @@
     return true;
   }
 
-  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer, drawCastleStone, drawScenicSky, drawScenicTerrace, SCENIC_DURATION, meteorShow };
+  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer, drawCastleStone, drawScenicSky, drawScenicTerrace, drawWhaleShow, drawPalaceStone, SCENIC_DURATION, meteorShow };
 })();
