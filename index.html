@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#eecfd1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>芽芽探险队 · 手机横屏版</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="engine.js"></script>
+  <script defer src="art.js"></script>
+  <script defer src="audio.js"></script>
+  <script defer src="mobile-state.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body>
+  <div class="storybook-backdrop" aria-hidden="true"></div>
+
+  <main class="game-shell" aria-label="芽芽探险队手机横屏单人闯关版">
+    <section class="game-stage" id="game-frame" aria-label="游戏画面">
+      <canvas
+        id="game-canvas"
+        width="960"
+        height="540"
+        tabindex="0"
+        aria-label="芽芽探险队。使用屏幕左侧方向键移动，右侧按钮跳跃和交互。"
+      ></canvas>
+
+      <div class="edge-shade" aria-hidden="true"></div>
+
+      <header class="game-hud">
+        <div class="location-chip">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="location-text">01 · 初见森林</span>
+        </div>
+        <div class="collectible-chip" aria-label="本关星光与用时">
+          <span class="star-mark" aria-hidden="true">✦</span>
+          <strong id="gem-count">0 / 5</strong>
+          <span class="timer-divider" aria-hidden="true"></span>
+          <span class="timer-icon" aria-hidden="true">◷</span>
+          <span id="timer">00:00</span>
+        </div>
+      </header>
+
+      <p class="world-caption" id="world-caption">跟着风，也跟着自己的好奇心。</p>
+
+      <section class="overlay" id="overlay" aria-live="polite">
+        <div class="overlay-card">
+          <div class="overlay-copy">
+            <span class="eyebrow" id="overlay-eyebrow">WELCOME TO GREENLEAF ISLAND</span>
+            <h1 id="overlay-title">森林正在等你。</h1>
+            <p id="overlay-description">你是住在绿芽岛的奶油兔。<br>用双手触碰屏幕，去找到森林另一头的光。</p>
+            <button id="play-button" class="primary-button" type="button">开始探险 <span aria-hidden="true">→</span></button>
+            <small id="overlay-note">单人闯关 · 自动存档 · 无限次勇敢</small>
+          </div>
+
+          <aside class="mission-card" aria-label="本关任务">
+            <div class="mission-heading">
+              <div>
+                <span class="eyebrow">YOUR EXPEDITION</span>
+                <h2 id="level-name">初见森林</h2>
+              </div>
+              <span class="panel-number" id="panel-number">01 / 03</span>
+            </div>
+            <p class="level-description" id="level-description">一段轻轻的起步，认识跳跃、弹簧和森林里的第一道机关。</p>
+            <div class="difficulty">
+              <span>难度</span>
+              <div id="difficulty-dots" aria-hidden="true"><i class="filled"></i><i></i><i></i></div>
+              <strong id="difficulty-text">轻松起步</strong>
+            </div>
+            <ul class="objectives">
+              <li id="objective-checkpoint">
+                <span class="objective-icon" aria-hidden="true">⚑</span>
+                <div><strong>点亮营地</strong><small>从检查点重新出发</small></div>
+                <span class="objective-state">○</span>
+              </li>
+              <li id="objective-mechanism">
+                <span class="objective-icon" aria-hidden="true">◇</span>
+                <div><strong>启动机关</strong><small id="mechanism-description">靠近拉杆，点交互打开木门</small></div>
+                <span class="objective-state">○</span>
+              </li>
+              <li id="objective-gems">
+                <span class="objective-icon" aria-hidden="true">✦</span>
+                <div><strong>收集星光</strong><small>不是必需，但值得绕路</small></div>
+                <span class="objective-state">○</span>
+              </li>
+            </ul>
+            <div class="guide-card"><span>触屏小贴士</span><p id="context-tip">左手移动，右手跳跃。轻点跳跃可以跳得更低。</p></div>
+            <button class="restart-link" id="sidebar-restart" type="button">重新开始本关</button>
+          </aside>
+        </div>
+      </section>
+    </section>
+
+    <nav class="level-tabs" aria-label="选择关卡">
+      <button data-level="0" class="active" type="button" aria-pressed="true"><b>01</b><span>初见森林</span></button>
+      <button data-level="1" type="button" aria-pressed="false"><b>02</b><span>树屋机关</span></button>
+      <button data-level="2" type="button" aria-pressed="false"><b>03</b><span>云间旅途</span></button>
+    </nav>
+
+    <div class="toolbar-actions" aria-label="游戏功能">
+      <button id="sound-button" class="round-action" type="button" aria-label="开启音乐与音效" aria-pressed="false" title="声音">
+        <span aria-hidden="true">♪</span><span class="sound-slash" aria-hidden="true">╱</span>
+      </button>
+      <button id="pause-button" class="round-action" type="button" aria-label="暂停游戏" title="暂停">Ⅱ</button>
+      <button id="restart-button" class="round-action" type="button" aria-label="重开本关" title="重开">↻</button>
+      <details class="settings-menu">
+        <summary class="round-action" aria-label="舒适设置" title="设置">⋯</summary>
+        <div class="settings-card">
+          <div class="settings-title"><strong>舒适设置</strong><small id="sky-label">晨光 · 自然流转</small></div>
+          <label>音乐 <input id="music-volume" type="range" min="0" max="100" value="38"><output id="music-output" for="music-volume">38%</output></label>
+          <label>音效 <input id="effects-volume" type="range" min="0" max="100" value="42"><output id="effects-output" for="effects-volume">42%</output></label>
+          <label>微风 <input id="nature-volume" type="range" min="0" max="100" value="20"><output id="nature-output" for="nature-volume">20%</output></label>
+          <label>天空
+            <select id="sky-mode">
+              <option value="auto">自然流转</option>
+              <option value="0">停在晨光</option>
+              <option value="1">停在晴午</option>
+              <option value="2">停在晚霞</option>
+              <option value="3">停在月夜</option>
+            </select>
+          </label>
+          <label class="setting-check"><input type="checkbox" id="reduce-motion"> 减少装饰动画</label>
+          <label class="setting-check"><input type="checkbox" id="hide-timer" checked> 隐藏计时</label>
+          <small id="audio-status" class="settings-note" aria-live="polite">点击开始后轻柔播放，可随时关闭。</small>
+          <small class="music-credit">音乐：Carefree — Kevin MacLeod<br><a href="https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400037" target="_blank" rel="noopener noreferrer">incompetech.com</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a><br>背景音乐循环播放；游戏动作音效为程序合成。</small>
+        </div>
+      </details>
+    </div>
+
+    <div class="touch-controls" aria-label="触屏操作区">
+      <div class="movement-pad" aria-label="移动">
+        <button data-touch="left" type="button" aria-label="向左移动"><span aria-hidden="true">‹</span><small>左</small></button>
+        <button data-touch="right" type="button" aria-label="向右移动"><span aria-hidden="true">›</span><small>右</small></button>
+      </div>
+      <div class="action-pad" aria-label="动作">
+        <button data-touch="interact" class="interact-button" type="button" aria-label="交互"><span aria-hidden="true">◇</span><small>交互</small></button>
+        <button data-touch="jump" class="jump-button" type="button" aria-label="跳跃"><span aria-hidden="true">↑</span><small>跳跃</small></button>
+      </div>
+    </div>
+
+    <div class="bottom-message game-bottom" aria-live="polite">
+      <span class="leaf-mark" aria-hidden="true">✳</span>
+      <span id="bottom-tip">掉下去也没关系，小芽总会重新长大。</span>
+      <small id="save-status">进度自动保存在本机</small>
+    </div>
+  </main>
+
+  <section class="rotate-notice" aria-label="横屏提示">
+    <div class="rotate-art" aria-hidden="true">
+      <span class="phone-shape"></span>
+      <span class="turn-arrow">↻</span>
+    </div>
+    <span class="eyebrow">LANDSCAPE ADVENTURE</span>
+    <h1>把手机横过来吧</h1>
+    <p>横屏后，双手会自然落在移动和跳跃按钮上，冒险也会看得更远。</p>
+  </section>
+</body>
+</html>

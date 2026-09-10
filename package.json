@@ -1,0 +1,11 @@
+{
+  "name": "sprout-adventure-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Landscape single-player storybook platformer with multitouch controls.",
+  "scripts": {
+    "start": "node server.cjs",
+    "test": "node --test mobile.test.cjs"
+  },
+  "engines": { "node": ">=18" }
+}
