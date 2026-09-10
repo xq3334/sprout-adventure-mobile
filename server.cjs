@@ -13,6 +13,7 @@ const publicFiles = new Map([
   ['/engine.js', ['engine.js', 'text/javascript; charset=utf-8']],
   ['/audio.js', ['audio.js', 'text/javascript; charset=utf-8']],
   ['/art.js', ['art.js', 'text/javascript; charset=utf-8']],
+  ['/viewport.js', ['viewport.js', 'text/javascript; charset=utf-8']],
   ['/mobile-state.js', ['mobile-state.js', 'text/javascript; charset=utf-8']],
   ['/assets/carefree.mp3', ['assets/carefree.mp3', 'audio/mpeg']],
   ['/game.js', ['game.js', 'text/javascript; charset=utf-8']]

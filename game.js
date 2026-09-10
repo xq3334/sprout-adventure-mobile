@@ -475,7 +475,7 @@
 
   function startGame() {
     document.querySelector('.settings-menu').open = false;
-    if (window.matchMedia('(orientation: portrait)').matches) return;
+    if (document.body.dataset.orientationBlocked === 'true') return;
     document.body.dataset.playing = 'true';
     if (status === 'complete') {
       loadLevel((currentLevel + 1) % LEVELS.length, true);
@@ -683,9 +683,7 @@
   }
   window.addEventListener('pointerup', releasePointer);
   window.addEventListener('pointercancel', releasePointer);
-  window.addEventListener('resize', leavePage);
-  window.addEventListener('orientationchange', leavePage);
-  window.visualViewport?.addEventListener('resize', leavePage);
+  window.addEventListener('gameviewportchange', leavePage);
   document.addEventListener('contextmenu', event => event.preventDefault());
   document.addEventListener('dragstart', event => event.preventDefault());
   document.querySelector('.settings-menu').addEventListener('toggle', event => {

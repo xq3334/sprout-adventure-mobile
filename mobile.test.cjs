@@ -3,6 +3,67 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { ActionInput, sanitizeProgress, getUnlockedLevel } = require('./mobile-state.js');
 const { GameWorld, LEVELS } = require('./engine.js');
+const { readFileSync } = require('node:fs');
+const { runInNewContext } = require('node:vm');
+
+function createViewportHarness(width, height) {
+  const listeners = new Map();
+  const properties = new Map();
+  const notice = { hidden: false };
+  const manualButton = { addEventListener(type, callback) { this[type] = callback; } };
+  const page = { clientWidth: width, clientHeight: height, style: { setProperty(name, value) { properties.set(name, value); } } };
+  const document = {
+    documentElement: page,
+    body: { dataset: {} },
+    querySelector() { return notice; },
+    getElementById(identifier) { return identifier === 'manual-landscape' ? manualButton : { focus() {} }; },
+    addEventListener() {}
+  };
+  let layoutChanges = 0;
+  const window = {
+    innerWidth: width, innerHeight: height, screen: {},
+    addEventListener(type, callback) { listeners.set(type, callback); },
+    dispatchEvent() { layoutChanges += 1; }
+  };
+  runInNewContext(readFileSync(require.resolve('./viewport.js'), 'utf8'), {
+    window, document, Event: class { constructor(type) { this.type = type; } },
+    setTimeout() { return 1; }, clearTimeout() {}
+  });
+  return { document, notice, properties, manualButton, window, page, listeners, get layoutChanges() { return layoutChanges; } };
+}
+
+test('locked portrait viewport can enter manually without orientation APIs', () => {
+  const viewport = createViewportHarness(390, 844);
+  assert.equal(viewport.document.body.dataset.orientationBlocked, 'true');
+  viewport.manualButton.click();
+  assert.equal(viewport.notice.hidden, true);
+  assert.equal(viewport.document.body.dataset.orientationBlocked, 'false');
+  assert.equal(viewport.document.body.dataset.rotated, 'true');
+  assert.equal(viewport.properties.get('--game-width'), '844px');
+  assert.equal(viewport.properties.get('--game-height'), '390px');
+  assert.equal(viewport.document.body.dataset.compact, 'true');
+});
+
+test('native rotation removes manual transform and repeated resize does not pause', () => {
+  const viewport = createViewportHarness(390, 844);
+  viewport.manualButton.click();
+  viewport.page.clientWidth = 844;
+  viewport.window.innerHeight = 390;
+  viewport.listeners.get('resize')();
+  assert.equal(viewport.notice.hidden, true);
+  assert.equal(viewport.document.body.dataset.rotated, 'false');
+  assert.equal(viewport.properties.get('--game-width'), '844px');
+  const changes = viewport.layoutChanges;
+  viewport.window.innerHeight = 360;
+  viewport.listeners.get('resize')();
+  assert.equal(viewport.layoutChanges, changes);
+});
+
+test('native landscape does not need manual confirmation', () => {
+  const viewport = createViewportHarness(844, 390);
+  assert.equal(viewport.notice.hidden, true);
+  assert.equal(viewport.document.body.dataset.orientationBlocked, 'false');
+});
 
 function advance(world, frames, input = {}) {
   for (let frame = 0; frame < frames; frame += 1) world.step(1 / 120, [input]);

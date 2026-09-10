@@ -8,12 +8,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>芽芽探险队 · 手机横屏版</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260910-2">
+  <script defer src="viewport.js?v=20260910-2"></script>
   <script defer src="engine.js"></script>
   <script defer src="art.js"></script>
   <script defer src="audio.js"></script>
   <script defer src="mobile-state.js"></script>
-  <script defer src="game.js"></script>
+  <script defer src="game.js?v=20260910-2"></script>
 </head>
 <body>
   <div class="storybook-backdrop" aria-hidden="true"></div>
@@ -155,7 +156,9 @@
     </div>
     <span class="eyebrow">LANDSCAPE ADVENTURE</span>
     <h1>把手机横过来吧</h1>
-    <p>横屏后，双手会自然落在移动和跳跃按钮上，冒险也会看得更远。</p>
+    <p>如果横过手机后仍停在这里，可能是浏览器或系统锁定了方向。点击下方按钮，游戏会自行旋转，无需等待识别。</p>
+    <button id="manual-landscape" class="primary-button" type="button">直接进入横屏版</button>
+    <small class="rotation-help">建议使用 Safari / Chrome；手动模式请将手机顶部朝左。</small>
   </section>
 </body>
 </html>
