@@ -92,7 +92,11 @@
       let welcomed = false;
       const isCurrent = () => generation === this.generation && socket === this.socket && !this.closed;
       this.handshakeTimer = root.setTimeout(() => {
-        if (isCurrent() && !welcomed) socket.close(4000, 'handshake_timeout');
+        if (isCurrent() && !welcomed) {
+          if (!resuming) this.finishConnection(new Error('连接超时，请检查网络后重试。'));
+          try { socket.close(4000, 'handshake_timeout'); } catch {}
+          if (resuming) socket.onclose?.({ code: 4000, reason: 'handshake_timeout' });
+        }
       }, resuming ? Math.max(1, Math.min(8000, this.reconnectDeadline - Date.now())) : 8000);
       socket.onmessage = event => {
         if (!isCurrent()) return;

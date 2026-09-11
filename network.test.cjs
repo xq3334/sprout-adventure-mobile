@@ -112,6 +112,21 @@ test('oversize payloads and backpressure are refused; terminal close never retri
   assert.equal(client.closed, true);
 });
 
+test('handshake timeout rejects even when the browser never emits close', async () => {
+  const fixture = makeTransport();
+  const client = new fixture.RoomClient({ url: 'wss://relay.example' });
+  const connection = client.connect({ role: 'host', room: '123456' });
+  const rejection = assert.rejects(connection, /连接超时/);
+  fixture.sockets[0].close = () => {};
+  [...fixture.timers.values()].find(timer => timer.delay === 8000).callback();
+  await rejection;
+  assert.equal(client.closed, true);
+  assert.equal(client.connected, false);
+  welcome(fixture.sockets[0]);
+  assert.equal(client.connected, false);
+  assert.equal(fixture.timers.size, 0);
+});
+
 test('cancelled connection ignores late welcome and rejects once', async () => {
   const fixture = makeTransport();
   const client = new fixture.RoomClient({ url: 'wss://relay.example' });

@@ -40,7 +40,7 @@ function createRelay(protocol) {
 
   class RoomClient {
     constructor({ url, onMessage, onStatus }) {
-      assert.match(url, /^https:\/\//);
+      assert.equal(url, 'https://sprout-adventure-rooms.3597327971.workers.dev');
       this.onMessage = onMessage;
       this.onStatus = onStatus;
       this.connected = false;
@@ -265,11 +265,11 @@ async function createSession() {
   for (const page of [host, guest]) {
     page.click('open-coop-lobby');
     assert.equal(page.getElement('coop-lobby').hidden, false);
-    page.getElement('relay-url').value = 'https://relay.example.test';
   }
   host.click('create-room');
-  assert.equal(host.getElement('room-code').value, '123456');
-  guest.getElement('room-code').value = host.getElement('room-code').value;
+  assert.equal(host.getElement('room-code').value, '');
+  assert.equal(host.getElement('active-room-code').textContent, '123456');
+  guest.getElement('room-code').value = host.getElement('active-room-code').textContent;
   guest.click('join-room');
   assert.equal(host.getElement('start-room').disabled, true, 'Unready room must not start');
   host.click('ready-room');
@@ -308,29 +308,68 @@ function placeAtScenicSpot(page) {
   }
 }
 
-test('cooperative lobby reports a missing service URL without connecting or changing saves', async () => {
+test('unconfirmed creation hides the room code and disables sharing until welcome', async () => {
   const relay = createRelay(await protocolPromise);
-  const page = createPage(relay);
-  page.getElement('relay-url').value = '';
-  page.click('open-coop-lobby');
-  for (const button of ['create-room', 'join-room']) {
-    page.click(button);
-    assert.match(page.getElement('room-status').textContent, /尚未配置联机服务/);
-    assert.equal(page.getElement('relay-url').closest('details').open, true);
-  }
-  assert.equal(relay.clients.length, 0);
-  assert.equal(page.world.players.length, 1);
+  const page = createPage(relay, { ...initialStorage, 'sprout-relay-url-v1': 'https://obsolete.example.test' });
+  page.getElement('create-room').click();
+  assert.equal(page.getElement('room-identity').hidden, true);
+  assert.equal(page.getElement('active-room-code').textContent, '');
+  assert.equal(page.getElement('room-code').value, '');
+  assert.equal(page.getElement('copy-room-link').disabled, true);
+  assert.equal(page.getElement('ready-room').disabled, true);
+  page.getElement('create-room').click();
+  assert.equal(relay.clients.length, 1);
+  relay.flush();
+  assert.equal(page.getElement('active-room-code').textContent, '123456');
+  assert.match(page.getElement('room-role').textContent, /房主/);
+  assert.equal(page.getElement('room-code').value, '');
+  assert.equal(page.getElement('copy-room-link').disabled, false);
   assertPersonalStoragePreserved(page);
 });
 
-test('lobby defaults to the deployed relay without overwriting a saved custom relay', async () => {
+test('failed creation clears pending controls and never fills the guest input', async () => {
+  const relay = createRelay(await protocolPromise);
+  relay.RoomClient.prototype.connect = function () { return Promise.reject(new Error('handshake failed')); };
+  const page = createPage(relay);
+  page.click('create-room');
+  await Promise.resolve();
+  assert.match(page.getElement('room-status').textContent, /创建失败/);
+  assert.equal(page.getElement('room-entry').hidden, false);
+  assert.equal(page.getElement('room-controls').hidden, true);
+  assert.equal(page.getElement('room-code').value, '');
+  assert.equal(page.getElement('active-room-code').textContent, '');
+  assertPersonalStoragePreserved(page);
+});
+
+test('reconnection preserves host identity and terminal failure clears the room', async () => {
   const relay = createRelay(await protocolPromise);
   const page = createPage(relay);
-  assert.equal(page.getElement('relay-url').value, 'https://sprout-adventure-rooms.3597327971.workers.dev');
-  const customPage = createPage(relay, { ...initialStorage, 'sprout-relay-url-v1': 'https://custom.example.test' });
-  assert.equal(customPage.getElement('relay-url').value, 'https://custom.example.test');
-  assert.equal(relay.clients.length, 0);
-  assertPersonalStoragePreserved(page);
+  page.click('create-room');
+  const host = relay.clients[0];
+  host.connected = false;
+  host.onStatus('reconnecting');
+  assert.match(page.getElement('room-role').textContent, /房主/);
+  assert.equal(page.getElement('active-room-code').textContent, '123456');
+  assert.equal(page.getElement('room-entry').hidden, true);
+  assert.equal(page.getElement('copy-room-link').disabled, true);
+  host.onStatus('error');
+  assert.equal(page.getElement('room-entry').hidden, false);
+  assert.equal(page.getElement('active-room-code').textContent, '');
+  assert.equal(page.getElement('room-code').value, '');
+});
+
+test('invitation contains only the room code and never exposes relay configuration', async () => {
+  const relay = createRelay(await protocolPromise);
+  const page = createPage(relay);
+  let copiedLink = '';
+  page.browser.navigator = { clipboard: { async writeText(value) { copiedLink = value; } } };
+  page.click('create-room');
+  page.click('copy-room-link');
+  await Promise.resolve();
+  assert.equal(new URL(copiedLink).hash, '#room=123456');
+  assert.doesNotMatch(copiedLink, /workers|relay|token/);
+  const markup = readFileSync(require.resolve('./index.html'), 'utf8');
+  assert.doesNotMatch(markup, /relay-url|workers\.dev|Cloudflare/);
 });
 
 test('guest sends direction press and release on the next frame instead of waiting for the periodic send', async () => {

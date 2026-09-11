@@ -8,6 +8,7 @@
   const defaultRelayUrl = 'https://sprout-adventure-rooms.3597327971.workers.dev';
   const emptyInput = () => ({ left: false, right: false, jumpPressed: false, jumpReleased: false, interactPressed: false });
   let client = null;
+  let roomConfirmed = false;
   let session = null;
   let members = [];
   let localReady = false;
@@ -60,11 +61,19 @@
   }
 
   function updateLobby() {
+    const connected = Boolean(client?.connected && roomConfirmed);
     element('room-entry').hidden = Boolean(client);
-    element('ready-room').disabled = Boolean(session);
     element('room-controls').hidden = !client;
+    element('room-identity').hidden = !roomConfirmed;
+    element('active-room-code').textContent = roomConfirmed ? client?.room || '' : '';
+    element('room-role').textContent = roomConfirmed ? (client?.role === 'host' ? '你是房主 · 将房间号发给朋友' : '你是伙伴 · 等待房主开始') : '';
+    element('create-room').disabled = Boolean(client);
+    element('join-room').disabled = Boolean(client);
+    element('copy-room-link').disabled = !connected;
+    element('ready-room').disabled = !connected || Boolean(session);
     element('room-members').textContent = members.map(member => `${member.slot + 1} 号${member.slot === 0 ? '房主' : '伙伴'} · ${!member.connected ? '离线' : member.ready ? '已准备' : '未准备'}`).join(' / ');
-    element('start-room').disabled = !client || client.role !== 'host' || members.filter(member => member.connected && member.ready).length !== 2;
+    element('start-room').hidden = client?.role !== 'host';
+    element('start-room').disabled = !connected || client.role !== 'host' || members.filter(member => member.connected && member.ready).length !== 2;
     element('start-room').textContent = session ? '重新开始雪境' : '两人准备后开始';
     element('ready-room').textContent = localReady ? '取消准备' : '我准备好了';
   }
@@ -147,7 +156,9 @@
   function handleMessage(message) {
     if (message.type === 'welcome') {
       disconnected = false;
-      showStatus(`房间 ${message.room} · 你是 ${message.slot + 1} 号。请两人都点击准备。`);
+      roomConfirmed = true;
+      if (client?.role === 'host') element('room-code').value = '';
+      showStatus(message.slot === 0 ? '建房成功。你是房主，可以邀请朋友加入。' : '加入成功。你是伙伴，两人准备后由房主开始。');
       updateLobby();
     } else if (message.type === 'lobby') {
       members = message.players;
@@ -188,46 +199,67 @@
       if (session) game.setNetworkPaused(true, '房间已结束，请打开地图册重新创建房间。');
       showStatus('房间已结束。请离开房间后重新创建。');
     } else if (message.type === 'error') {
-      showStatus(message.message || message.code || '房间请求失败，请检查服务地址和房间码。');
+      const errorMessages = {
+        not_ready: '请两位玩家都点击“我准备好了”。',
+        peer_missing: '伙伴尚未在线，请等待对方加入或恢复连接。',
+        room_full: '房间已满，请核对房间号或请房主重新建房。',
+        room_not_found: '房间不存在或已过期，请让朋友确认建房成功。',
+        rate_limited: '操作过于频繁，请稍等片刻再试。',
+        already_started: '游戏已经开始，请等待房主操作。',
+        paused: '游戏已暂停，请等待房主继续。'
+      };
+      showStatus(errorMessages[message.code] || '房间操作未成功，请稍后重试。');
     }
   }
 
   function connectRoom(role) {
+    if (client) return;
     if (!window.SproutNetwork) { showStatus('联机模块未加载，请刷新页面。'); return; }
-    const address = element('relay-url').value.trim();
-    if (!address) { showStatus('尚未配置联机服务。请先部署 Cloudflare Worker，再填写它的公开地址。'); element('relay-url').closest('details').open = true; return; }
     const room = role === 'host' ? window.SproutNetwork.generateRoomCode() : element('room-code').value.trim();
-    if (!/^\d{6}$/.test(room)) { showStatus('请输入朋友发来的 6 位房间码。'); return; }
-    leaveRoom();
+    if (!/^[1-9][0-9]{5}$/.test(room)) { showStatus('请输入朋友发来的 6 位房间码，首位不能为 0。'); return; }
+    roomConfirmed = false;
+    if (role === 'host') element('room-code').value = '';
+    const failureMessage = role === 'host'
+      ? '创建失败，房间尚未确认创建。请检查网络后重试；不要分享未确认的房间号。'
+      : '加入失败。请确认房主显示“建房成功”且仍在线，并核对房间号；若仍失败，请双方检查网络。';
     try {
-      client = new window.SproutNetwork.RoomClient({
-        url: address,
-        onMessage: handleMessage,
+      const connectingClient = new window.SproutNetwork.RoomClient({
+        url: defaultRelayUrl,
+        onMessage: message => {
+          if (client === connectingClient) handleMessage(message);
+        },
         onStatus: status => {
+          if (client !== connectingClient) return;
           const state = typeof status === 'string' ? status : status.status;
-          if (['closed', 'disconnected', 'reconnecting', 'error'].includes(state)) {
+          if (['disconnected', 'reconnecting', 'error', 'ended', 'closed'].includes(state)) {
             disconnected = true;
             clearSimulationInput();
-            if (session) game.setNetworkPaused(true, '网络连接中断。请等待重连；无法恢复时从地图册重新建房。');
-            showStatus('连接中断或无法连接，请检查网络、服务地址和服务部署状态。');
+            if (session) game.setNetworkPaused(true, '连接中断，正在等待恢复。无法恢复时请退出房间重新创建。');
+            if (['error', 'ended', 'closed'].includes(state)) {
+              if (roomConfirmed) {
+                const hadSession = Boolean(session);
+                leaveRoom();
+                if (hadSession) game.returnToSingle();
+                showStatus('房间连接已结束，请重新创建或加入。你没有变成另一位玩家。');
+              }
+            } else {
+              showStatus('连接中断，正在自动重连。你的房间号与身份保持不变，请勿重复建房。');
+            }
+            updateLobby();
           }
         }
       });
-      const connectingClient = client;
-      client.connect({ room, role }).catch(error => {
+      client = connectingClient;
+      showStatus(role === 'host' ? '正在创建房间，请等待服务器确认…' : '正在加入朋友的房间…');
+      updateLobby();
+      client.connect({ room, role }).catch(() => {
         if (client !== connectingClient) return;
         leaveRoom();
-        showStatus(`连接失败：${error.message}`);
+        showStatus(failureMessage);
       });
-      element('room-code').value = room;
-      try { localStorage.setItem('sprout-relay-url-v1', address); } catch {}
-      showStatus(`正在连接房间 ${room}…`);
-      updateLobby();
-    } catch (error) {
-      client?.close();
-      client = null;
-      showStatus(error.message || '连接失败，请检查服务地址。');
-      updateLobby();
+    } catch {
+      leaveRoom();
+      showStatus(failureMessage);
     }
   }
 
@@ -252,6 +284,7 @@
   function leaveRoom() {
     const previousClient = client;
     client = null;
+    roomConfirmed = false;
     session = null;
     members = [];
     localReady = false;
@@ -333,10 +366,10 @@
   element('start-room').addEventListener('click', () => session ? restartSession() : client?.send({ type: 'start' }));
   element('leave-room').addEventListener('click', () => { leaveRoom(); game.returnToSingle(); showStatus('已离开房间，单人存档不受影响。'); });
   element('copy-room-link').addEventListener('click', async () => {
-    if (!client) return;
+    if (!client?.connected || !roomConfirmed) return;
     const invitation = new URL(window.location.href);
     invitation.search = '';
-    invitation.hash = new URLSearchParams({ room: client.room, relay: element('relay-url').value.trim() }).toString();
+    invitation.hash = new URLSearchParams({ room: client.room }).toString();
     try { await navigator.clipboard.writeText(invitation.href); showStatus('邀请链接已复制，发给朋友后请两人分别点击准备。'); }
     catch { showStatus(`复制失败，请手动分享链接：${invitation.href}`); }
   });
@@ -353,14 +386,12 @@
     });
   }
 
-  element('relay-url').value = defaultRelayUrl;
-  try { element('relay-url').value = localStorage.getItem('sprout-relay-url-v1') || defaultRelayUrl; } catch {}
+  updateLobby();
   const invitation = new URLSearchParams(window.location.hash.slice(1));
-  if (/^\d{6}$/.test(invitation.get('room') || '')) {
+  if (/^[1-9][0-9]{5}$/.test(invitation.get('room') || '')) {
     element('room-code').value = invitation.get('room');
-    if (invitation.get('relay')) element('relay-url').value = invitation.get('relay');
     openLobby();
-    showStatus('朋友邀请你一起探险。请确认服务地址后点击加入，不会自动连接陌生服务。');
+    showStatus('朋友邀请你一起探险。点击加入房间，连接成功后再准备。');
   }
   window.SproutCoop = { tick, open: openLobby, pause: pauseSession, restart: restartSession, leave: leaveRoom };
 })();

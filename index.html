@@ -8,15 +8,15 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>芽芽探险队 · 手机横屏版</title>
-  <link rel="stylesheet" href="style.css?v=20260911-1">
+  <link rel="stylesheet" href="style.css?v=20260911-2">
   <script defer src="viewport.js?v=20260910-2"></script>
-  <script defer src="engine.js?v=20260911-1"></script>
-  <script defer src="art.js?v=20260911-1"></script>
-  <script defer src="audio.js?v=20260911-1"></script>
+  <script defer src="engine.js?v=20260911-2"></script>
+  <script defer src="art.js?v=20260911-2"></script>
+  <script defer src="audio.js?v=20260911-2"></script>
   <script defer src="mobile-state.js"></script>
-  <script defer src="network.js?v=20260911-1"></script>
-  <script defer src="game.js?v=20260911-1"></script>
-  <script defer src="coop.js?v=20260911-1"></script>
+  <script defer src="network.js?v=20260911-2"></script>
+  <script defer src="game.js?v=20260911-2"></script>
+  <script defer src="coop.js?v=20260911-2"></script>
 </head>
 <body>
   <div class="storybook-backdrop" aria-hidden="true"></div>
@@ -117,10 +117,21 @@
       <div class="adventure-card lobby-card">
         <header class="adventure-heading"><div><span class="eyebrow">SNOWBOUND TOGETHER</span><h2 id="coop-title">等一个人，一起看极光。</h2></div><button id="close-coop-lobby" class="dialog-close" type="button" aria-label="关闭联机大厅">×</button></header>
         <p>两台设备、两个角色。双踏板与共鸣机关需要配合，营地需一起点亮。任一人失足，两人回到共同营地。</p>
-        <details class="connection-settings"><summary>联机服务设置</summary><label for="relay-url">Cloudflare 服务地址（已预设，可自行更换）</label><input id="relay-url" type="url" placeholder="https://你的服务.workers.dev" autocomplete="off"><small>这里只填公开地址，切勿填写 API Token。邀请链接会携带服务地址。</small></details>
         <div id="room-entry" class="room-entry"><button id="create-room" class="primary-button" type="button">创建双人房间</button><label for="room-code">加入朋友的房间</label><div class="join-row"><input id="room-code" inputmode="numeric" maxlength="6" placeholder="6 位房间码" autocomplete="off"><button id="join-room" type="button">加入</button></div></div>
         <p id="room-status" class="room-status" role="status">尚未连接。创建房间或输入朋友的房间码，两人准备后出发。</p>
-        <div id="room-controls" hidden><p id="room-members"></p><div class="lobby-actions"><button id="copy-room-link" type="button">复制邀请链接</button><button id="ready-room" type="button">我准备好了</button><button id="start-room" class="primary-button" type="button" disabled>两人准备后开始</button><button id="leave-room" type="button">离开房间</button></div></div>
+        <div id="room-controls" hidden>
+          <div id="room-identity" class="room-identity" hidden>
+            <p id="room-role"></p>
+            <span>房间号</span><strong id="active-room-code"></strong>
+          </div>
+          <p id="room-members"></p>
+          <div class="lobby-actions">
+            <button id="copy-room-link" type="button" disabled>复制邀请链接</button>
+            <button id="ready-room" type="button" disabled>我准备好了</button>
+            <button id="start-room" class="primary-button" type="button" disabled>两人准备后开始</button>
+            <button id="leave-room" type="button">退出 / 取消连接</button>
+          </div>
+        </div>
         <small>请保持游戏在前台。切后台会暂停这一局；暂不支持房主迁移。建议先在同一 Wi-Fi 下试玩。</small>
       </div>
     </section>
