@@ -2,7 +2,8 @@
   'use strict';
 
   const art = window.StorybookArt;
-  const { GameWorld, LEVELS } = window.SproutEngine;
+  const { GameWorld, LEVELS: ALL_LEVELS, COOP_LEVEL_INDEX = 5 } = window.SproutEngine;
+  const LEVELS = ALL_LEVELS.filter(level => level.mode !== 'coop');
   const canvas = document.getElementById('game-canvas');
   const context = canvas.getContext('2d');
   const element = identifier => document.getElementById(identifier);
@@ -10,10 +11,12 @@
   const actionInput = new ActionInput();
   const touchButtons = [...document.querySelectorAll('[data-touch]')];
   const particles = [];
-  const playerCount = 1;
+  let playerCount = 1;
+  let cooperativeSession = null;
+  const getLocalPlayer = () => world.players[cooperativeSession?.slot || 0];
   let scenicEffectTime = 0;
   const scenicMemories = new Set();
-  const scenicStorageKeys = { 'moon-castle': 'sprout-mobile-moon-memory-v1', 'whale-palace': 'sprout-mobile-whale-memory-v1' };
+  const scenicStorageKeys = { 'moon-castle': 'sprout-mobile-moon-memory-v1', 'whale-palace': 'sprout-mobile-whale-memory-v1', 'snow-aurora': 'sprout-mobile-snow-memory-v1' };
   for (const [identifier, key] of Object.entries(scenicStorageKeys)) {
     try { if (localStorage.getItem(key) === 'true') scenicMemories.add(identifier); } catch {}
   }
@@ -172,6 +175,7 @@
   }
 
   function drawTerrain(terrain) {
+    if (world.level.theme === 'snow') { art.drawSnowStone(context, terrain); return; }
     if (world.level.theme === 'palace') { art.drawPalaceStone(context, terrain); return; }
     if (world.level.theme === 'castle') { art.drawCastleStone(context, terrain); return; }
     if (art.drawTerrain(context, terrain)) return;
@@ -193,6 +197,11 @@
   }
 
   function drawPlatform(platform, moving = false) {
+    if (world.level.theme === 'snow') {
+      art.drawSnowStone(context, platform);
+      if (moving) ellipse(platform.x + platform.w / 2, platform.y + 28, 30, 5, '#d7fcff55');
+      return;
+    }
     if (world.level.theme === 'palace') {
       art.drawPalaceStone(context, platform);
       if (moving) ellipse(platform.x + platform.w / 2, platform.y + 28, 32, 6, '#8af6df55');
@@ -267,6 +276,16 @@
     world.flameJets.forEach(jet => {
       roundRectangle(jet.x - 6, jet.y + jet.h - 6, jet.w + 12, 9, 3, '#8994ac', '#c2cfdf');
       if (jet.warning) { ellipse(jet.x + jet.w / 2, 441, 24, 8, '#ffd17d77'); text('!', jet.x + jet.w / 2, 421, 20, '#ffe1a5'); }
+      if (jet.active && world.level.theme === 'snow') {
+        const frost = context.createLinearGradient(0, jet.y, 0, jet.y + jet.h);
+        frost.addColorStop(0, '#eafcff55'); frost.addColorStop(1, '#94ceffdd');
+        roundRectangle(jet.x, jet.y, jet.w, jet.h, 8, frost, '#d7f6ff');
+        for (let crystal = 0; crystal < 4; crystal += 1) {
+          const rise = comfort.reduceMotion ? crystal * 25 : (animationTime * 80 + crystal * 25) % jet.h;
+          drawStar(jet.x + jet.w / 2, jet.y + jet.h - rise, 4, '#efffff');
+        }
+        return;
+      }
       if (jet.active && underwater) {
         const water = context.createLinearGradient(0, jet.y, 0, jet.y + jet.h);
         water.addColorStop(0, '#d1ffef88'); water.addColorStop(1, '#55dceac9');
@@ -291,7 +310,11 @@
       ellipse(spot.x, spot.y - 2, 47, 8, '#b0e7ff44');
       line([[spot.x - 90, spot.y], [spot.x - 90, spot.y - 58], [spot.x + 90, spot.y - 58], [spot.x + 90, spot.y]], '#b6c8e1', 3);
       for (let offset = -75; offset <= 75; offset += 25) line([[spot.x + offset, spot.y], [spot.x + offset, spot.y - 45]], '#7e91b3', 2);
-      if (underwater) {
+      if (world.level.theme === 'snow') {
+        drawStar(spot.x - 15, spot.y - 77, 12, '#d1fff0');
+        drawStar(spot.x + 15, spot.y - 77, 12, '#f0dcff');
+        text(spot.visited ? '双人极光留影已完成' : '极光台 · 两人站近后交互', spot.x, spot.y - 109, 12, '#ecfaff');
+      } else if (underwater) {
         ellipse(spot.x, spot.y - 74, 17, 17, '#d9ffe9');
         text(spot.visited ? '鲸歌留影已完成' : '鲸歌回廊 · 点交互留影', spot.x, spot.y - 104, 12, '#ddfff1');
       } else {
@@ -303,6 +326,16 @@
   }
 
   function drawDecorations() {
+    if (world.level.theme === 'snow') {
+      world.terrain.forEach(terrain => {
+        for (let position = terrain.x + 70; position < terrain.x + terrain.w; position += 320) {
+          line([[position, terrain.y], [position, terrain.y - 44]], '#577792', 4);
+          ellipse(position, terrain.y - 47, 16, 18, '#ffd59a20');
+          roundRectangle(position - 5, terrain.y - 53, 10, 13, 3, '#ffe3ae');
+        }
+      });
+      return;
+    }
     if (world.level.theme === 'palace') {
       world.terrain.forEach(terrain => {
         for (let position = terrain.x + 55; position < terrain.x + terrain.w - 20; position += 175) {
@@ -375,7 +408,21 @@
       roundRectangle(plate.x + 3, plate.y + (plate.active ? 4 : -2), plate.w - 6, 7, 3, plate.active ? '#aaca72' : '#e6c371');
       text(plate.active ? '已触发' : '压力踏板', plate.x + plate.w / 2, plate.y + 36, 10, '#77684d');
     });
-    world.level.levers.forEach(lever => {
+    world.level.levers.forEach((lever, leverIndex) => {
+      const linkedGate = world.gates.find(candidate => candidate.source === 'paired-levers' && candidate.indices?.includes(leverIndex));
+      if (world.level.theme === 'snow') {
+        const resonanceWindow = linkedGate?.window ?? 5;
+        const remaining = lever.activatedAt === null ? 0 : Math.max(0, resonanceWindow - (world.time - lever.activatedAt));
+        const resonanceComplete = Boolean(linkedGate?.open);
+        roundRectangle(lever.x - 9, lever.y + 12, 40, 27, 7, '#769db7', '#d6f3ff');
+        ellipse(lever.x + 11, lever.y + 7, 13, 17, lever.active ? '#b7ffdc' : '#c9d5ff');
+        line([[lever.x + 11, lever.y - 15], [lever.x + 11, lever.y - 6]], '#edfaff', 3);
+        const bellLabel = resonanceComplete ? '雪钟 · 已共鸣'
+          : lever.active ? `共鸣 ${remaining.toFixed(1)}s`
+          : '雪钟 · 交互';
+        text(bellLabel, lever.x + 11, lever.y - 27, 11, '#e0f7ff');
+        return;
+      }
       if (world.level.theme === 'palace') {
         ellipse(lever.x + 11, lever.y + 29, 23, 9, '#9fcfc5');
         context.beginPath(); context.ellipse(lever.x + 11, lever.y + 22, 23, 25, 0, Math.PI, Math.PI * 2); context.closePath();
@@ -392,6 +439,19 @@
       text('交互', lever.x + 11, lever.y - 21, 11);
     });
     world.gates.forEach(gate => {
+      if (world.level.theme === 'snow') {
+        const visibleTop = 165;
+        roundRectangle(gate.x - 10, visibleTop, gate.w + 20, 285, 9, '#82adca45', '#c5e9f3');
+        if (!gate.open) {
+          const ice = context.createLinearGradient(gate.x, 0, gate.x + gate.w, 0);
+          ice.addColorStop(0, '#86bddbe0'); ice.addColorStop(.5, '#daf9ffcc'); ice.addColorStop(1, '#759ecfe0');
+          roundRectangle(gate.x, visibleTop, gate.w, 285, 5, ice);
+          text('封印', gate.x + gate.w / 2, 325, 11, '#31557b');
+        }
+        drawStar(gate.x + gate.w / 2, visibleTop - 20, 12, gate.open ? '#baffdf' : '#f0d2ff');
+        text(gate.open ? '已解开' : gate.source === 'paired-plates' ? '双踏板封印' : '双钟共鸣', gate.x + gate.w / 2, visibleTop - 44, 11, '#e0f7ff');
+        return;
+      }
       roundRectangle(gate.x - 7, gate.y - 5, gate.w + 14, gate.h + 10, 6, '#8e855b');
       roundRectangle(gate.x - 3, gate.y, gate.w + 6, gate.h, 4, '#c9d3a4');
       if (!gate.open) {
@@ -430,6 +490,14 @@
 
   function drawExit() {
     const exit = world.level.exit;
+    if (world.level.theme === 'snow') {
+      roundRectangle(exit.x - 10, exit.y - 24, exit.w + 20, 105, [32, 32, 5, 5], '#638da9', '#d3f0ff');
+      roundRectangle(exit.x, exit.y - 12, exit.w, 90, [28, 28, 3, 3], '#c5f6ed55');
+      drawStar(exit.x + 18, exit.y + 22, 10, '#dbfff1');
+      drawStar(exit.x + 48, exit.y + 22, 10, '#f0dcff');
+      text('一起抵达 · 雪境归途', exit.x + exit.w / 2, exit.y + 107, 11, '#e3f6ff');
+      return;
+    }
     if (world.level.theme === 'palace') {
       roundRectangle(exit.x - 8, exit.y - 18, 82, 100, [38, 38, 6, 6], '#c4c9a0', '#e5f3d4');
       roundRectangle(exit.x + 2, exit.y - 8, 62, 90, [30, 30, 4, 4], '#285976');
@@ -498,7 +566,7 @@
     context.translate(viewX, 0);
     drawBackground(camera, viewWidth);
     if (scenicEffectTime > 0) {
-      const drawShow = world.level.theme === 'palace' ? art.drawWhaleShow : art.drawScenicSky;
+      const drawShow = world.level.theme === 'snow' ? art.drawAuroraShow : world.level.theme === 'palace' ? art.drawWhaleShow : art.drawScenicSky;
       drawShow(context, art.SCENIC_DURATION - scenicEffectTime, comfort.reduceMotion);
     }
     context.save();
@@ -545,17 +613,26 @@
   }
 
   function render() {
-    const player = world.players[0];
+    const player = getLocalPlayer();
     const camera = Math.max(0, Math.min(world.level.width - 960, player.x - 960 * .43));
     drawScene(0, 960, camera);
+    if (cooperativeSession) {
+      const partner = world.players[1 - cooperativeSession.slot];
+      if (partner.x < camera + 25 || partner.x > camera + 920) {
+        const leftSide = partner.x < camera;
+        roundRectangle(leftSide ? 20 : 800, 120, 140, 32, 12, '#18354dcf');
+        text(`${leftSide ? '←' : '→'} 伙伴 · ${Math.round(Math.abs(partner.x - player.x) / 30)} 步`, leftSide ? 90 : 870, 141, 12, '#d9f7ff');
+      }
+    }
     if (scenicEffectTime > 0) {
       const elapsed = art.SCENIC_DURATION - scenicEffectTime;
       context.save();
       context.globalAlpha = Math.min(1, elapsed, scenicEffectTime);
       roundRectangle(320, 342, 320, 58, 12, '#142139a8', '#b2ccec66');
       const underwater = world.level.theme === 'palace';
-      text(underwater ? '潮汐王宫 · 与鲸同游' : '月影古堡 · 星河为你停留', 480, 366, 16, '#f5edd9');
-      text(underwater ? '鲸歌纪念已收集  /  鲸歌回廊' : '月光纪念已收集  /  观月台', 480, 386, 10, '#c3d7f1');
+      const snow = world.level.theme === 'snow';
+      text(snow ? '雪境双星 · 一起抵达极光' : underwater ? '潮汐王宫 · 与鲸同游' : '月影古堡 · 星河为你停留', 480, 366, 16, '#f5edd9');
+      text(snow ? '双人纪念已收集 / 极光台' : underwater ? '鲸歌纪念已收集  /  鲸歌回廊' : '月光纪念已收集  /  观月台', 480, 386, 10, '#c3d7f1');
       context.restore();
     }
   }
@@ -571,7 +648,7 @@
   function clearInput() {
     actionInput.clear();
     syncTouchButtons();
-    if (world) world.players[0].jumpBuffer = 0;
+    if (world) getLocalPlayer().jumpBuffer = 0;
   }
 
   function refreshLevelTabs() {
@@ -598,21 +675,34 @@
     element('overlay').hidden = false;
   }
 
-  function loadLevel(index, startPlaying = false) {
-    if (!Number.isInteger(index) || index < 0 || index > getUnlockedLevel(completedLevels, LEVELS.length)) return;
+  function loadLevel(index, startPlaying = false, cooperative = false) {
+    if (cooperative) {
+      if (!cooperativeSession || index !== COOP_LEVEL_INDEX) return;
+    } else {
+      if (!Number.isInteger(index) || index < 0 || index >= LEVELS.length || index > getUnlockedLevel(completedLevels, LEVELS.length)) return;
+      window.SproutCoop?.leave();
+      cooperativeSession = null;
+    }
+    playerCount = cooperative ? 2 : 1;
+    element('map-book').hidden = true;
+    if (!cooperative) {
+      element('coop-lobby').hidden = true;
+      element('overlay-note').textContent = '单人闯关 · 自动存档 · 无限次勇敢';
+      element('save-status').textContent = storageAvailable ? '进度自动保存在本机' : '本机存档不可用，仍可正常游玩';
+    }
     currentLevel = index;
     document.querySelector('.settings-menu').open = false;
-    world = new GameWorld(index, 1);
+    world = new GameWorld(index, playerCount);
     cozyAudio.setScene?.(world.level.music);
     scenicEffectTime = 0;
     document.body.dataset.theme = world.level.theme || 'forest';
     element('scenic-status').hidden = !world.scenicSpots.length;
-    element('sky-mode').disabled = ['castle', 'palace'].includes(world.level.theme);
+    element('sky-mode').disabled = ['castle', 'palace', 'snow'].includes(world.level.theme);
     particles.length = 0;
     accumulator = 0;
     toastTime = 0;
     clearInput();
-    const level = LEVELS[index];
+    const level = world.level;
     status = startPlaying ? 'playing' : 'welcome';
     document.body.dataset.playing = String(startPlaying);
     element('level-name').textContent = level.name;
@@ -635,7 +725,13 @@
     if (startPlaying) { canvas.focus({ preventScroll: true }); enableAudio(); }
   }
 
+  function restartLevel() {
+    if (cooperativeSession) { window.SproutCoop.restart(); return; }
+    loadLevel(currentLevel, true);
+  }
+
   function pauseGame() {
+    if (cooperativeSession) { window.SproutCoop.pause(status === 'playing'); return; }
     if (status !== 'playing' && status !== 'paused') return;
     clearInput();
     if (status === 'playing') {
@@ -650,6 +746,11 @@
   }
 
   function startGame() {
+    if (cooperativeSession) {
+      if (status === 'complete') { window.SproutCoop.open(); return; }
+      window.SproutCoop.pause(false);
+      return;
+    }
     document.querySelector('.settings-menu').open = false;
     if (document.body.dataset.orientationBlocked === 'true') return;
     document.body.dataset.playing = 'true';
@@ -710,7 +811,7 @@
         for (let index = 0; index < 14; index += 1) particles.push({ x: event.x, y: event.y, velocityX: (Math.random() - .5) * 130, velocityY: -Math.random() * 100, size: 2 + Math.random() * 2, life: 1, color: '#fff0ad' });
       }
       if ((event.type === 'jump' || event.type === 'spring') && !comfort.reduceMotion) {
-        const player = world.players[0];
+        const player = getLocalPlayer();
         for (let index = 0; index < 9; index += 1) particles.push({ x: player.x + player.w / 2, y: player.y + player.h, velocityX: (index - 4) * 15, velocityY: 8 + Math.random() * 20, size: 2 + Math.random() * 2, life: .6, color: '#fff7df' });
       }
       if (event.type === 'scenic') {
@@ -731,6 +832,11 @@
       if (event.type === 'complete') {
         status = 'complete';
         clearInput();
+        if (cooperativeSession) {
+          try { localStorage.setItem('sprout-mobile-coop-record-v1', JSON.stringify({ time: world.time, gems: world.collected, deaths: world.deaths })); } catch {}
+          showOverlay('这一场风雪，我们一起走过。', `共同星光 ${world.collected} / ${world.gems.length} · 用时 ${formatTime(world.time)}\n共同重来 ${world.deaths} 次\n单人存档保持不变。可以回大厅，或由房主重开。`, '返回联机大厅', 'TWO HEARTS. ONE JOURNEY.');
+          return;
+        }
         const storageKey = String(currentLevel);
         const previousBest = completedLevels[storageKey];
         completedLevels[storageKey] = { gems: Math.max(previousBest?.gems || 0, world.collected), time: Math.min(previousBest?.time || Infinity, world.time) };
@@ -757,12 +863,12 @@
       item.classList.toggle('complete', complete);
       item.querySelector('.objective-state').textContent = complete ? '✓' : '○';
     });
-    const player = world.players[0];
+    const player = getLocalPlayer();
     const scenicSpot = world.getNearbyScenicSpot(player);
     const interactButton = document.querySelector('[data-touch="interact"]');
     interactButton.querySelector('small').textContent = scenicSpot ? '打卡' : '交互';
     interactButton.setAttribute('aria-label', scenicSpot ? '风景打卡' : '交互');
-    const memoryName = world.level.theme === 'palace' ? '鲸歌纪念' : '月光纪念';
+    const memoryName = world.level.theme === 'snow' ? '极光合影' : world.level.theme === 'palace' ? '鲸歌纪念' : '月光纪念';
     element('scenic-status').textContent = `${memoryName} ${scenicMemories.has(world.scenicSpots[0]?.id) ? 1 : 0} / 1`;
     const canInteract = Boolean(scenicSpot) || player.carrying !== null || world.level.levers.some(lever => Math.abs(lever.x - player.x) < 66 && Math.abs(lever.y - player.y) < 75) || world.crates.some(crate => crate.carrier === null && Math.abs(crate.x - player.x) < 70 && Math.abs(crate.y - player.y) < 65);
     document.querySelector('[data-touch="interact"]').classList.toggle('is-near', canInteract && status === 'playing');
@@ -786,21 +892,26 @@
           if (previousElapsed < meteor.delay && elapsed >= meteor.delay) playSound('meteor');
         }
       }
-      if (previousElapsed < 3 && elapsed >= 3) playSound(world.level.theme === 'palace' ? 'whale' : 'constellation');
+      if (previousElapsed < 3 && elapsed >= 3) playSound(world.level.theme === 'snow' ? 'aurora' : world.level.theme === 'palace' ? 'whale' : 'constellation');
       const spot = world.scenicSpots[0];
-      if (!spot || Math.abs(world.players[0].x - spot.x) > 330 || Math.abs(world.players[0].y + world.players[0].h - spot.y) > 85) scenicEffectTime = 0;
+      const localPlayer = getLocalPlayer();
+      if (!spot || Math.abs(localPlayer.x - spot.x) > 330 || Math.abs(localPlayer.y + localPlayer.h - spot.y) > 85) scenicEffectTime = 0;
     }
-    element('sky-label').textContent = world.level.theme === 'palace' ? '潮汐王宫 · 深海微光' : world.level.theme === 'castle' ? '月影古堡 · 固定夜景' : `${skyName} · ${comfort.reduceMotion ? '装饰静止' : comfort.sky === 'auto' ? '天空约五分钟循环' : '留住这一刻'}`;
+    element('sky-label').textContent = world.level.theme === 'snow' ? '雪境双星 · 极地长夜' : world.level.theme === 'palace' ? '潮汐王宫 · 深海微光' : world.level.theme === 'castle' ? '月影古堡 · 固定夜景' : `${skyName} · ${comfort.reduceMotion ? '装饰静止' : comfort.sky === 'auto' ? '天空约五分钟循环' : '留住这一刻'}`;
     element('timer').hidden = comfort.hideTimer;
     element('timer').previousElementSibling.hidden = comfort.hideTimer;
     document.querySelector('.timer-divider').hidden = comfort.hideTimer;
     cozyAudio.tick();
     if (status === 'playing') {
-      accumulator += deltaTime;
-      while (accumulator >= 1 / 120 && status === 'playing') {
-        world.step(1 / 120, getInputs());
-        accumulator -= 1 / 120;
-        processEvents();
+      if (cooperativeSession) {
+        window.SproutCoop.tick(deltaTime, getInputs()[0]);
+      } else {
+        accumulator += deltaTime;
+        while (accumulator >= 1 / 120 && status === 'playing') {
+          world.step(1 / 120, getInputs());
+          accumulator -= 1 / 120;
+          processEvents();
+        }
       }
       cozyAudio.updateEnvironment?.(world);
       if (toastTime > 0) {
@@ -822,10 +933,49 @@
     requestAnimationFrame(animate);
   }
 
+  window.SproutGame = {
+    getWorld: () => world,
+    isPlaying: () => status === 'playing',
+    startCoop(session) {
+      cooperativeSession = session;
+      loadLevel(COOP_LEVEL_INDEX, true, true);
+      element('panel-number').textContent = '双人 / 雪境';
+      element('location-text').textContent = `双人 · ${world.level.name}`;
+      element('overlay-note').textContent = '共同营地 · 双人机关 · 极光合影';
+      element('save-status').textContent = `你是 ${session.slot + 1} 号 · 联机中`;
+    },
+    setNetworkPaused(paused, message = '两人都回到游戏后，由房主继续。') {
+      clearInput();
+      accumulator = 0;
+      if (status === 'complete') return;
+      status = paused ? 'paused' : 'playing';
+      cozyAudio.setPaused(paused);
+      document.body.dataset.playing = String(!paused);
+      element('overlay').hidden = !paused;
+      element('pause-button').textContent = paused ? '▷' : 'Ⅱ';
+      if (paused) showOverlay('在风雪中等一等。', message, '继续双人探险');
+      else { canvas.focus({ preventScroll: true }); enableAudio(); }
+    },
+    processEvents,
+    showToast,
+    pauseForMenu() { if (status === 'playing') pauseGame(); clearInput(); },
+    returnToSingle() { cooperativeSession = null; loadLevel(0, false); }
+  };
+
+  element('open-map-book').addEventListener('click', () => {
+    window.SproutGame.pauseForMenu();
+    element('map-book').hidden = false;
+    element('close-map-book').focus();
+  });
+  element('close-map-book').addEventListener('click', () => {
+    element('map-book').hidden = true;
+    element('open-map-book').focus();
+  });
+
   const keyboardActions = { KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', Space: 'jump', ArrowUp: 'jump', KeyE: 'interact', Enter: 'interact' };
   window.addEventListener('keydown', event => {
     if (event.code === 'Escape') { event.preventDefault(); if (!event.repeat) pauseGame(); return; }
-    if (event.code === 'KeyR' && document.activeElement === canvas) { event.preventDefault(); if (!event.repeat) loadLevel(currentLevel, true); return; }
+    if (event.code === 'KeyR' && document.activeElement === canvas) { event.preventDefault(); if (!event.repeat) restartLevel(); return; }
     if (status !== 'playing' || document.activeElement !== canvas || !keyboardActions[event.code]) return;
     event.preventDefault();
     if (!event.repeat) actionInput.press(`keyboard:${event.code}`, keyboardActions[event.code]);
@@ -846,7 +996,7 @@
   canvas.addEventListener('pointerdown', () => canvas.focus({ preventScroll: true }));
   element('play-button').addEventListener('click', startGame);
   element('pause-button').addEventListener('click', pauseGame);
-  ['restart-button', 'sidebar-restart'].forEach(identifier => element(identifier).addEventListener('click', () => loadLevel(currentLevel, true)));
+  ['restart-button', 'sidebar-restart'].forEach(identifier => element(identifier).addEventListener('click', restartLevel));
   element('sound-button').addEventListener('click', () => {
     cozyAudio.setEnabled(!cozyAudio.enabled);
     if (cozyAudio.enabled && status !== 'paused') enableAudio();

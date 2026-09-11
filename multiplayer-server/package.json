@@ -1,0 +1,16 @@
+{
+  "name": "sprout-multiplayer-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --env development --ip 127.0.0.1",
+    "deploy": "wrangler deploy --env=\"\"",
+    "check": "wrangler deploy --dry-run --env=\"\"",
+    "test": "node --test protocol.test.js room.test.js"
+  },
+  "engines": { "node": ">=22.0.0" },
+  "devDependencies": {
+    "wrangler": "^4.130.0"
+  }
+}

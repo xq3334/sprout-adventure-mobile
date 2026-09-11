@@ -87,6 +87,90 @@
     }
   ];
 
+  const COOP_LEVEL_INDEX = 5;
+
+  function createSnowLevel() {
+    const level = {
+      name: '雪境双星', mode: 'coop', theme: 'snow', music: 'snow', requiresPlayers: 2,
+      description: '两个人，从雪松山口走到极光尽头。九段长途、双人踏板与共鸣拉杆，留下只属于你们的雪境合照。',
+      difficulty: '双人远征 · 约十分钟初见探索', mechanism: '分站双踏板；五秒内由不同伙伴拉动共鸣双杆',
+      hint: '机关打开后永久保持。旗帜须两人靠近才保存；一人跌落会一起回旗帜。出口也要一起到达。',
+      width: 16000, spawn: { x: 85, y: 412 },
+      terrain: [], platforms: [], hazards: [], springs: [], movingPlatforms: [], crates: [],
+      plates: [], levers: [], gates: [], checkpoints: [], gems: [], signs: [],
+      currents: [
+        { x: 6250, y: 400, w: 180, h: 50, force: -25 },
+        { x: 11500, y: 400, w: 180, h: 50, force: 25 }
+      ],
+      flameJets: [
+        { x: 1050, y: 355, w: 32, h: 95, period: 4.8, activeDuration: 1.5, phase: 0 },
+        { x: 8050, y: 355, w: 32, h: 95, period: 4.8, activeDuration: 1.5, phase: 1.6 },
+        { x: 13300, y: 355, w: 32, h: 95, period: 4.8, activeDuration: 1.5, phase: 3.2 }
+      ],
+      scenicSpots: [{ id: 'snow-aurora', name: '雪境双星 · 极光约定台', x: 15830, y: 190, radius: 100, requiresPlayers: 2 }],
+      exit: { x: 15850, y: 370, w: 100, h: 80 }
+    };
+    const stages = [
+      { start: 0, name: '雪松山口', plateHeight: 450, leverHeight: 360, gap: 120 },
+      { start: 1750, name: '高低回声', plateHeight: 360, leverHeight: 275, gap: 130 },
+      { start: 3500, name: '霜桥守望', plateHeight: 275, leverHeight: 360, gap: 300 },
+      { start: 5250, name: '冰晶阶庭', plateHeight: 360, leverHeight: 190, gap: 140 },
+      { start: 7000, name: '雪谷双钟', plateHeight: 275, leverHeight: 275, gap: 120 },
+      { start: 8750, name: '风渡浮冰', plateHeight: 450, leverHeight: 190, gap: 300 },
+      { start: 10500, name: '银杉长阶', plateHeight: 275, leverHeight: 360, gap: 140 },
+      { start: 12250, name: '星雪回廊', plateHeight: 360, leverHeight: 275, gap: 130 },
+      { start: 14000, name: '极光之约', plateHeight: 275, leverHeight: 190, gap: 0 }
+    ];
+    const addStaircase = (destinationX, height, terraceWidth) => {
+      const stairCount = Math.ceil((450 - height) / 90) - 1;
+      for (let stairIndex = 0; stairIndex < stairCount; stairIndex += 1) {
+        level.platforms.push([destinationX - (stairCount - stairIndex) * 130, 365 - stairIndex * 85, 120, 20]);
+      }
+      if (height < 450) level.platforms.push([destinationX, height, terraceWidth, 22]);
+    };
+    stages.forEach((stage, stageIndex) => {
+      const start = stage.start;
+      const groundEnd = start + (stage.gap === 300 ? 1430 : 1530);
+      level.terrain.push([start, 450, stageIndex === 8 ? 2000 : groundEnd - start, 120]);
+      if (stageIndex < 8) {
+        const nextGround = groundEnd + stage.gap;
+        if (nextGround < start + 1750) level.terrain.push([nextGround, 450, start + 1750 - nextGround, 120]);
+      }
+      level.checkpoints.push({ x: start + 110, y: 450 });
+      level.signs.push({ x: start + 135, y: 315, text: `${stageIndex + 1} / 9 · ${stage.name} · 旗帜等同伴` });
+      const firstPlateIndex = level.plates.length;
+      level.plates.push(
+        { x: start + 270, y: 440, w: 66, h: 10, active: false, requiresPlayers: true },
+        { x: start + 650, y: stage.plateHeight - 10, w: 66, h: 10, active: false, requiresPlayers: true }
+      );
+      addStaircase(start + 640, stage.plateHeight, 150);
+      level.gates.push({ x: start + 820, y: -400, w: 34, h: 850, source: 'paired-plates', indices: [firstPlateIndex, firstPlateIndex + 1] });
+      level.signs.push({ x: start + 265, y: 300, text: '各站一块踏板 · 同时亮起永久开门' });
+      const firstLeverIndex = level.levers.length;
+      level.levers.push(
+        { x: start + 925, y: 412, active: false, activatedBy: null, activatedAt: null },
+        { x: start + 1310, y: stage.leverHeight - 38, active: false, activatedBy: null, activatedAt: null }
+      );
+      addStaircase(start + 1270, stage.leverHeight, 100);
+      level.gates.push({ x: start + 1410, y: -400, w: 34, h: 850, source: 'paired-levers', indices: [firstLeverIndex, firstLeverIndex + 1], window: 5 });
+      level.signs.push({ x: start + 930, y: 295, text: '一人留在低处 · 同伴登高 · 五秒内分别交互' });
+      if (stage.gap === 300) {
+        level.movingPlatforms.push({ x: groundEnd, y: 420, w: 110, h: 22, range: 190, period: 4.8 });
+        level.signs.push({ x: groundEnd + 45, y: 300, text: '浮冰可往返 · 先到者等旗帜' });
+      }
+      if ([1, 3, 4, 6, 7].includes(stageIndex)) level.hazards.push([start + 350, 432, 50, 18]);
+      level.gems.push([start + 440, 320], [start + 695, stage.plateHeight - 45], [start + 1320, stage.leverHeight - 45]);
+    });
+    level.currents.forEach(current => level.signs.push({ x: current.x, y: 315, text: '轻雪风廊 · 迎风稳走，顺风收步' }));
+    level.flameJets.forEach(jet => level.signs.push({ x: jet.x - 65, y: 285, text: '冰泉亮起前有预警 · 熄灭后通过' }));
+    // Optional summit detour stays beyond all gates, with three ordinary jump-height steps.
+    level.platforms.push([15550, 365, 120, 20], [15680, 280, 120, 20], [15810, 190, 180, 22]);
+    level.signs.push({ x: 15500, y: 300, text: '登上三级高台 · 两人同上极光台 · 交互合照' });
+    return level;
+  }
+
+  LEVELS.push(createSnowLevel());
+
   function overlaps(first, second) {
     return first.x < second.x + second.w && first.x + first.w > second.x && first.y < second.y + second.h && first.y + first.h > second.y;
   }
@@ -111,6 +195,8 @@
       this.mechanismUsed = false;
       this.checkpointIndex = -1;
       this.events = [];
+      this.plates = this.level.plates;
+      this.levers = this.level.levers;
       this.currents = (this.level.currents || []).map(current => ({ ...current }));
       this.jellyfish = (this.level.jellyfish || []).map(creature => ({ ...creature, originX: creature.x, originY: creature.y }));
       this.bats = (this.level.bats || []).map(bat => ({ ...bat, originX: bat.x, originY: bat.y }));
@@ -131,6 +217,125 @@
         walkDistance: 0, landingTime: 0,
         respawnX: this.level.spawn.x + index * 45, respawnY: this.level.spawn.y, arrived: false
       }));
+    }
+
+    captureSnapshot() {
+      const snapshot = { version: 1, levelIndex: this.levelIndex, playerCount: this.players.length };
+      for (const field of ['time', 'deaths', 'collected', 'completed', 'mechanismUsed', 'checkpointIndex']) snapshot[field] = this[field];
+      const fieldsByCollection = this.getSnapshotFields();
+      for (const [collection, fields] of Object.entries(fieldsByCollection)) {
+        snapshot[collection] = this[collection].map(body => Object.fromEntries(fields.map(field => {
+          const value = field === 'standingOn' ? this.identifySolid(body.standingOn) : body[field];
+          return [field, value === undefined ? null : value];
+        })));
+      }
+      // Events are transient effects, not simulation history. The transport deduplicates by host tick.
+      snapshot.events = this.events.slice(-64).map(event => ({ ...event }));
+      return snapshot;
+    }
+
+    getSnapshotFields() {
+      return {
+        players: ['id', 'x', 'y', 'velocityX', 'velocityY', 'grounded', 'coyote', 'jumpBuffer', 'facing', 'invincible', 'standingOn', 'carrying', 'walkDistance', 'landingTime', 'respawnX', 'respawnY', 'arrived'],
+        crates: ['x', 'y', 'velocityY', 'carrier'], gates: ['open', 'grace'],
+        plates: ['active'], levers: ['active', 'activatedBy', 'activatedAt'],
+        movingPlatforms: ['x', 'deltaX'], gems: ['collected'], scenicSpots: ['visited'],
+        bats: ['x', 'y'], jellyfish: ['x', 'y'], flameJets: ['active', 'warning']
+      };
+    }
+
+    identifySolid(solid) {
+      if (!solid) return null;
+      for (const collection of ['terrain', 'platforms', 'movingPlatforms', 'gates', 'crates']) {
+        const index = this[collection].indexOf(solid);
+        if (index >= 0) return `${collection}:${index}`;
+      }
+      return null;
+    }
+
+    resolveSolid(identifier) {
+      if (typeof identifier !== 'string' || identifier.length > 40) return null;
+      const match = /^(terrain|platforms|movingPlatforms|gates|crates):(\d{1,4})$/.exec(identifier);
+      return match ? this[match[1]][Number(match[2])] || null : null;
+    }
+
+    applySnapshot(snapshot) {
+      const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype;
+      const boundedNumber = (value, minimum, maximum) => Number.isFinite(value) && value >= minimum && value <= maximum;
+      const boundedInteger = (value, minimum, maximum) => Number.isInteger(value) && boundedNumber(value, minimum, maximum);
+      if (!isRecord(snapshot) || snapshot.version !== 1 || snapshot.levelIndex !== this.levelIndex || snapshot.playerCount !== this.players.length) return false;
+      const fieldsByCollection = this.getSnapshotFields();
+      const scalarFields = ['time', 'deaths', 'collected', 'completed', 'mechanismUsed', 'checkpointIndex'];
+      const allowedKeys = ['version', 'levelIndex', 'playerCount', 'events', ...scalarFields, ...Object.keys(fieldsByCollection)];
+      if (Object.keys(snapshot).length !== allowedKeys.length || Object.keys(snapshot).some(field => !allowedKeys.includes(field))) return false;
+      if (!boundedNumber(snapshot.time, 0, 604800) || !boundedInteger(snapshot.deaths, 0, 1000000) || !boundedInteger(snapshot.collected, 0, this.gems.length) || !boundedInteger(snapshot.checkpointIndex, -1, this.level.checkpoints.length - 1)) return false;
+      if (typeof snapshot.completed !== 'boolean' || typeof snapshot.mechanismUsed !== 'boolean') return false;
+      const booleanFields = ['grounded', 'arrived', 'active', 'open', 'collected', 'visited', 'warning'];
+      const validatedCollections = {};
+      for (const [collection, fields] of Object.entries(fieldsByCollection)) {
+        const entries = snapshot[collection];
+        if (!Array.isArray(entries) || entries.length !== this[collection].length) return false;
+        validatedCollections[collection] = [];
+        for (let index = 0; index < entries.length; index += 1) {
+          const entry = entries[index];
+          if (!isRecord(entry) || Object.keys(entry).length !== fields.length || Object.keys(entry).some(field => !fields.includes(field))) return false;
+          const validated = {};
+          for (const field of fields) {
+            const value = entry[field];
+            let valid;
+            if (booleanFields.includes(field)) valid = typeof value === 'boolean';
+            else if (field === 'standingOn') valid = value === null || this.resolveSolid(value) !== null;
+            else if (field === 'id') valid = value === index;
+            else if (field === 'facing') valid = value === -1 || value === 1;
+            else if (field === 'carrying') valid = value === null || boundedInteger(value, 0, this.crates.length - 1);
+            else if (field === 'carrier' || field === 'activatedBy') valid = value === null || boundedInteger(value, 0, this.players.length - 1);
+            else if (field === 'activatedAt') valid = value === null || boundedNumber(value, 0, snapshot.time);
+            else if (field === 'x' || field === 'respawnX') valid = boundedNumber(value, -100, this.level.width + 100);
+            else if (field === 'y' || field === 'respawnY') valid = boundedNumber(value, -2000, 1000);
+            else if (field === 'velocityX' || field === 'velocityY' || field === 'deltaX') valid = boundedNumber(value, -2000, 2000);
+            else if (field === 'walkDistance') valid = boundedNumber(value, 0, 1000000000);
+            else valid = boundedNumber(value, 0, 10);
+            if (!valid) return false;
+            validated[field] = value;
+          }
+          validatedCollections[collection].push(validated);
+        }
+      }
+      if (snapshot.collected !== validatedCollections.gems.filter(gem => gem.collected).length) return false;
+      for (const player of validatedCollections.players) {
+        if (player.carrying !== null && validatedCollections.crates[player.carrying].carrier !== player.id) return false;
+      }
+      for (let crateIndex = 0; crateIndex < validatedCollections.crates.length; crateIndex += 1) {
+        const carrier = validatedCollections.crates[crateIndex].carrier;
+        if (carrier !== null && validatedCollections.players[carrier].carrying !== crateIndex) return false;
+      }
+      if (snapshot.completed && (this.players.length < (this.level.requiresPlayers || 1) || !validatedCollections.players.every(player => player.arrived && overlaps({ ...player, w: 30, h: 38 }, this.level.exit)))) return false;
+      if (!Array.isArray(snapshot.events) || snapshot.events.length > 64) return false;
+      const eventTypes = ['scenic', 'hint', 'interact', 'respawn', 'jump', 'land', 'spring', 'gem', 'checkpoint', 'complete'];
+      const validatedEvents = [];
+      for (const event of snapshot.events) {
+        if (!isRecord(event) || Object.keys(event).length > 6 || !eventTypes.includes(event.type)) return false;
+        const validated = {};
+        for (const [field, value] of Object.entries(event)) {
+          if (['type', 'id', 'name', 'text'].includes(field)) {
+            if (typeof value !== 'string' || value.length > 256) return false;
+          } else if (field === 'x' || field === 'y') {
+            if (!boundedNumber(value, -2000, this.level.width + 1000)) return false;
+          } else return false;
+          validated[field] = value;
+        }
+        validatedEvents.push(validated);
+      }
+      // Apply only after full validation; retain object identity used by renderers and platform riders.
+      for (const field of scalarFields) this[field] = snapshot[field];
+      for (const [collection, entries] of Object.entries(validatedCollections)) {
+        entries.forEach((entry, index) => {
+          if (Object.hasOwn(entry, 'standingOn')) entry.standingOn = this.resolveSolid(entry.standingOn);
+          Object.assign(this[collection][index], entry);
+        });
+      }
+      this.events = validatedEvents;
+      return true;
     }
 
     getSolids(includeCrates = true) {
@@ -172,6 +377,10 @@
       }
       const scenicSpot = this.getNearbyScenicSpot(player);
       if (scenicSpot) {
+        if (scenicSpot.requiresPlayers && (this.players.length < scenicSpot.requiresPlayers || !this.players.every(teammate => this.getNearbyScenicSpot(teammate) === scenicSpot))) {
+          this.events.push({ type: 'hint', text: '等同伴也登上极光台，再一起留下纪念。' });
+          return;
+        }
         if (!scenicSpot.visited) {
           scenicSpot.visited = true;
           this.events.push({ type: 'scenic', id: scenicSpot.id, name: scenicSpot.name, x: scenicSpot.x, y: scenicSpot.y });
@@ -180,7 +389,11 @@
       }
       const lever = this.level.levers.find(item => Math.abs(item.x - player.x) < 66 && Math.abs(item.y - player.y) < 75);
       if (lever) {
-        lever.active = !lever.active;
+        if (this.level.mode === 'coop') {
+          lever.active = true;
+          lever.activatedBy = player.id;
+          lever.activatedAt = this.time;
+        } else lever.active = !lever.active;
         this.mechanismUsed = true;
         this.events.push({ type: 'interact' });
         return;
@@ -194,7 +407,7 @@
     }
 
     getNearbyScenicSpot(player) {
-      return this.scenicSpots.find(spot => player.grounded && Math.abs(player.x + player.w / 2 - spot.x) < 55 && Math.abs(player.y + player.h - spot.y) < 12);
+      return this.scenicSpots.find(spot => player.grounded && Math.abs(player.x + player.w / 2 - spot.x) < (spot.radius || 55) && Math.abs(player.y + player.h - spot.y) < 12);
     }
 
     updateNightObstacles() {
@@ -211,6 +424,18 @@
     }
 
     respawn(player) {
+      if (this.level.mode === 'coop') {
+        this.players.forEach(teammate => {
+          if (teammate.carrying !== null) this.resetCrate(this.crates[teammate.carrying]);
+          Object.assign(teammate, { x: teammate.respawnX, y: teammate.respawnY, velocityX: 0, velocityY: 0, invincible: 1.2, grounded: false, standingOn: null, carrying: null, coyote: 0, jumpBuffer: 0, arrived: false });
+        });
+        this.gates.filter(gate => gate.source === 'paired-levers' && !gate.open).forEach(gate => {
+          gate.indices.forEach(leverIndex => Object.assign(this.levers[leverIndex], { active: false, activatedBy: null, activatedAt: null }));
+        });
+        this.deaths += 1;
+        this.events.push({ type: 'respawn' });
+        return;
+      }
       if (player.carrying !== null) {
         this.resetCrate(this.crates[player.carrying]);
         player.carrying = null;
@@ -227,12 +452,35 @@
     updateMechanisms(deltaTime) {
       this.level.plates.forEach(plate => {
         const detectionArea = { x: plate.x, y: plate.y - 8, w: plate.w, h: 18 };
-        const weights = this.crates.filter(crate => crate.carrier === null);
+        const weights = plate.requiresPlayers ? [] : this.crates.filter(crate => crate.carrier === null);
         if (!plate.requiresCrate) weights.push(...this.players);
         plate.active = weights.some(body => overlaps(body, detectionArea));
         if (plate.active) this.mechanismUsed = true;
       });
       this.gates.forEach(gate => {
+        if (gate.source === 'paired-plates' || gate.source === 'paired-levers') {
+          if (gate.open) return;
+          let solved = false;
+          if (gate.source === 'paired-plates') {
+            const occupants = gate.indices.map(plateIndex => {
+              const plate = this.plates[plateIndex];
+              return this.players.filter(player => player.grounded && overlaps(player, { x: plate.x, y: plate.y - 8, w: plate.w, h: 18 }));
+            });
+            solved = occupants[0].some(first => occupants[1].some(second => first.id !== second.id));
+          } else {
+            const pairedLevers = gate.indices.map(leverIndex => this.levers[leverIndex]);
+            pairedLevers.forEach(lever => {
+              if (lever.activatedAt !== null && this.time - lever.activatedAt > gate.window) Object.assign(lever, { active: false, activatedAt: null, activatedBy: null });
+            });
+            solved = pairedLevers.every(lever => lever.active && lever.activatedBy !== null) && pairedLevers[0].activatedBy !== pairedLevers[1].activatedBy;
+          }
+          if (this.players.length === 2 && solved) {
+            gate.open = true;
+            this.mechanismUsed = true;
+            this.events.push({ type: 'interact' });
+          }
+          return;
+        }
         const source = gate.source === 'lever' ? this.level.levers[gate.index] : this.level.plates[gate.index];
         gate.grace = source.active ? 1.4 : Math.max(0, gate.grace - deltaTime);
         const occupied = [...this.players, ...this.crates].some(body => overlaps(body, gate));
@@ -257,7 +505,9 @@
         this.moveBody(crate, crate.velocityY * deltaTime, 'y', this.getSolids(false));
         if (crate.y > 620 || this.hazards.some(hazard => overlaps(crate, hazard))) this.resetCrate(crate);
       });
+      let groupRespawned = false;
       this.players.forEach((player, index) => {
+        if (groupRespawned) return;
         const input = inputs[index] || {};
         const wasGrounded = player.grounded;
         player.landingTime = Math.max(0, player.landingTime - deltaTime);
@@ -309,6 +559,7 @@
         const touchingDanger = this.hazards.some(hazard => overlaps(player, hazard)) || this.jellyfish.some(creature => overlaps(player, creature)) || this.bats.some(bat => overlaps(player, bat)) || this.flameJets.some(jet => jet.active && overlaps(player, jet));
         if (player.y > 610 || (player.invincible <= 0 && touchingDanger)) {
           this.respawn(player);
+          groupRespawned = this.level.mode === 'coop';
           return;
         }
         this.gems.forEach(gem => {
@@ -319,6 +570,7 @@
           }
         });
         this.level.checkpoints.forEach((checkpoint, checkpointIndex) => {
+          if (this.level.mode === 'coop') return;
           if (checkpointIndex <= this.checkpointIndex || Math.abs(player.x - checkpoint.x) > 38 || Math.abs(player.y + player.h - checkpoint.y) > 45) return;
           this.checkpointIndex = checkpointIndex;
           this.players.forEach((teammate, teammateIndex) => {
@@ -330,14 +582,25 @@
         player.arrived = overlaps(player, this.level.exit);
       });
       this.updateMechanisms(0);
-      if (this.players.every(player => player.arrived)) {
+      if (this.level.mode === 'coop' && !groupRespawned && this.players.length === 2) {
+        this.level.checkpoints.forEach((checkpoint, checkpointIndex) => {
+          if (checkpointIndex <= this.checkpointIndex) return;
+          const together = this.players.every(player => player.grounded && Math.abs(player.x - checkpoint.x) <= 140 && Math.abs(player.y + player.h - checkpoint.y) <= 12);
+          const pathOpen = this.gates.every(gate => gate.x >= checkpoint.x || gate.open);
+          if (!together || !pathOpen) return;
+          this.checkpointIndex = checkpointIndex;
+          this.players.forEach((player, playerIndex) => Object.assign(player, { respawnX: checkpoint.x + playerIndex * 40, respawnY: checkpoint.y - player.h }));
+          this.events.push({ type: 'checkpoint' });
+        });
+      }
+      if (this.players.length >= (this.level.requiresPlayers || 1) && this.players.every(player => player.arrived)) {
         this.completed = true;
         this.events.push({ type: 'complete' });
       }
     }
   }
 
-  const engine = { GameWorld, LEVELS, PHYSICS, overlaps };
+  const engine = { GameWorld, LEVELS, COOP_LEVEL_INDEX, PHYSICS, overlaps };
   if (typeof module !== 'undefined' && module.exports) module.exports = engine;
   else root.SproutEngine = engine;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -580,8 +580,9 @@ test('palace page integration renders, accepts touch check-in and persists the c
   assert.equal(getElement('scenic-status').textContent, '月光纪念 0 / 1');
 });
 
-test('checkpoint respawn and completion events work in all levels', () => {
+test('checkpoint respawn and completion events work in all single-player levels', () => {
   for (let levelIndex = 0; levelIndex < LEVELS.length; levelIndex += 1) {
+    if (LEVELS[levelIndex].mode === 'coop') continue;
     const world = new GameWorld(levelIndex, 1);
     const player = world.players[0];
     const checkpoint = world.level.checkpoints[0];

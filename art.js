@@ -326,7 +326,175 @@
     context.restore();
   }
 
+  function drawSnowBackground(context, camera, width) {
+    context.save();
+    const sky = context.createLinearGradient(0, 0, 0, 540);
+    sky.addColorStop(0, '#101c38'); sky.addColorStop(.52, '#294762'); sky.addColorStop(1, '#6d8998');
+    context.fillStyle = sky; context.fillRect(0, 0, width, 540);
+    const span = Math.max(960, width) + 100;
+    const motionTime = reducedMotion ? 0 : skyTime;
+    for (let star = 0; star < 64; star += 1) {
+      const positionX = ((star * 137.7 - camera * .035) % span + span) % span;
+      context.fillStyle = star % 5 ? '#d0e6ef88' : '#fff2d5';
+      context.fillRect(positionX, 18 + star * 59 % 220, star % 5 ? 1 : 2, 1.5);
+    }
+    const moonX = width * .78 - camera * .018;
+    drawGlow(context, moonX, 80, 105, '#c4e7fa25');
+    context.fillStyle = '#e0edf1';
+    context.beginPath(); context.arc(moonX, 80, 23, 0, Math.PI * 2); context.fill();
+    context.fillStyle = '#a8cbdc55';
+    context.beginPath(); context.arc(moonX - 8, 76, 6, 0, Math.PI * 2); context.fill();
+    // Fixed-size parallax tiles bound the detail cost independently of level length.
+    for (let layer = 0; layer < 3; layer += 1) {
+      const tileWidth = 420;
+      const offset = camera * (.07 + layer * .075) % tileWidth;
+      for (let mountain = -1; mountain < Math.min(12, Math.ceil(width / tileWidth) + 2); mountain += 1) {
+        const positionX = mountain * tileWidth - offset;
+        const peakY = 125 + layer * 60;
+        context.fillStyle = ['#425b77', '#38566e', '#304b5f'][layer];
+        context.beginPath(); context.moveTo(positionX - 80, 510);
+        context.lineTo(positionX + 135, peakY); context.lineTo(positionX + 218, peakY + 100);
+        context.lineTo(positionX + 298, peakY + 55); context.lineTo(positionX + 530, 510); context.closePath(); context.fill();
+        context.fillStyle = ['#acc8d8', '#87aebf', '#6893a6'][layer];
+        context.beginPath(); context.moveTo(positionX + 135, peakY);
+        context.lineTo(positionX + 218, peakY + 100); context.lineTo(positionX + 168, peakY + 78);
+        context.lineTo(positionX + 143, peakY + 104); context.lineTo(positionX + 124, peakY + 63);
+        context.lineTo(positionX + 73, peakY + 106); context.closePath(); context.fill();
+        context.fillStyle = '#162e433b';
+        context.beginPath(); context.moveTo(positionX + 135, peakY + 6);
+        context.lineTo(positionX + 178, 510); context.lineTo(positionX + 355, 510); context.closePath(); context.fill();
+      }
+    }
+    for (let ruin = -1; ruin < Math.min(9, Math.ceil(width / 340) + 2); ruin += 1) {
+      const positionX = ruin * 340 - camera * .28 % 340;
+      const roofY = 308 + (ruin + 3) % 2 * 27;
+      context.fillStyle = '#3b5c6b'; context.fillRect(positionX, roofY, 130, 220);
+      context.fillStyle = '#213d50';
+      context.beginPath(); context.roundRect(positionX + 36, roofY + 40, 57, 190, [28, 28, 0, 0]); context.fill();
+      context.strokeStyle = '#7396a14d'; context.lineWidth = 2;
+      context.strokeRect(positionX + 7, roofY + 10, 116, 195);
+      context.fillStyle = '#adcbd4'; context.fillRect(positionX - 5, roofY, 140, 5);
+      context.fillStyle = '#628da0';
+      for (let icicle = 0; icicle < 7; icicle += 1) {
+        const icicleX = positionX + 8 + icicle * 18;
+        context.beginPath(); context.moveTo(icicleX, roofY + 5); context.lineTo(icicleX + 4, roofY + 17 + icicle % 3 * 7);
+        context.lineTo(icicleX + 8, roofY + 5); context.fill();
+      }
+      context.fillStyle = '#97dfdb66'; context.fillRect(positionX + 61, roofY + 63, 5, 24);
+    }
+    for (let pine = -1; pine < Math.min(28, Math.ceil(width / 65) + 2); pine += 1) {
+      const positionX = pine * 65 - camera * .39 % 65;
+      const height = 63 + (pine + 4) % 4 * 18;
+      context.fillStyle = '#254454'; context.fillRect(positionX - 2, 420, 4, 90);
+      for (let branch = 0; branch < 3; branch += 1) {
+        const branchY = 453 - height + branch * 23;
+        const spread = 18 + branch * 9;
+        context.fillStyle = '#284957';
+        context.beginPath(); context.moveTo(positionX, branchY); context.lineTo(positionX - spread, branchY + 47);
+        context.lineTo(positionX + spread, branchY + 47); context.closePath(); context.fill();
+        context.fillStyle = '#91b3c080';
+        context.beginPath(); context.moveTo(positionX, branchY); context.lineTo(positionX - spread * .7, branchY + 32);
+        context.lineTo(positionX + 5, branchY + 23); context.closePath(); context.fill();
+      }
+    }
+    // Snow is background-only; solid platforms retain an uninterrupted bright top edge.
+    for (let flake = 0; flake < 48; flake += 1) {
+      const positionX = ((flake * 113.7 - camera * .45 + Math.sin(motionTime * .2 + flake) * 12) % span + span) % span - 30;
+      const positionY = (flake * 79 + motionTime * (7 + flake % 4)) % 540;
+      context.fillStyle = flake % 3 ? '#d7f4ff55' : '#eafaff99';
+      context.beginPath(); context.arc(positionX, positionY, flake % 3 ? 1 : 1.7, 0, Math.PI * 2); context.fill();
+    }
+    context.restore();
+    return true;
+  }
+
+  function drawSnowStone(context, stone) {
+    context.save();
+    context.beginPath(); context.roundRect(stone.x, stone.y, stone.w, stone.h, 4); context.clip();
+    const ice = context.createLinearGradient(0, stone.y, 0, stone.y + stone.h);
+    ice.addColorStop(0, '#78afc3'); ice.addColorStop(.3, '#4e7b95'); ice.addColorStop(1, '#324d69');
+    context.fillStyle = ice; context.fillRect(stone.x, stone.y, stone.w, stone.h);
+    context.strokeStyle = '#263f5c88'; context.lineWidth = 1.5;
+    const rows = Math.min(16, Math.ceil(stone.h / 28));
+    const columns = Math.min(80, Math.ceil(stone.w / 64));
+    for (let row = 0; row < rows; row += 1) {
+      for (let column = -1; column < columns; column += 1) {
+        context.strokeRect(stone.x + column * 64 + row % 2 * 32, stone.y + row * 28, 64, 28);
+      }
+    }
+    context.strokeStyle = '#c2eeff66'; context.lineWidth = 1;
+    for (let seam = 0; seam < Math.min(32, Math.ceil(stone.w / 47)); seam += 1) {
+      const positionX = stone.x + 19 + seam * 47;
+      context.beginPath(); context.moveTo(positionX, stone.y + 9); context.lineTo(positionX + 8, stone.y + 19);
+      context.lineTo(positionX + 3, stone.y + 33); context.stroke();
+    }
+    context.fillStyle = '#a5d8e9'; context.fillRect(stone.x, stone.y + 5, stone.w, 6);
+    context.fillStyle = '#f0fbff'; context.fillRect(stone.x, stone.y, stone.w, 5);
+    context.restore();
+    return true;
+  }
+
+  function drawAuroraShow(context, elapsed, reduceMotion) {
+    if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed >= SCENIC_DURATION) return;
+    const envelope = Math.min(1, elapsed / 1.5, (SCENIC_DURATION - elapsed) / 2);
+    const motionTime = reduceMotion ? 0 : elapsed;
+    context.save(); context.globalCompositeOperation = 'screen';
+    context.globalAlpha = envelope;
+    drawGlow(context, 470, 95, 245, '#6eeccf20');
+    for (let ribbon = 0; ribbon < 4; ribbon += 1) {
+      const crest = positionX => 64 + ribbon * 29 + Math.sin(positionX * .006 + ribbon * .75 + motionTime * .18) * 30
+        + Math.sin(positionX * .013 - motionTime * .12) * 9;
+      const colors = ['#70efca', '#8bdff7', '#b6a2f3', '#a2f4df'];
+      const curtain = context.createLinearGradient(0, 10, 0, 300);
+      curtain.addColorStop(0, `${colors[ribbon]}00`); curtain.addColorStop(.35, `${colors[ribbon]}55`);
+      curtain.addColorStop(.75, `${colors[ribbon]}16`); curtain.addColorStop(1, `${colors[ribbon]}00`);
+      context.beginPath(); context.moveTo(-30, crest(-30));
+      for (let positionX = -10; positionX <= 990; positionX += 20) context.lineTo(positionX, crest(positionX));
+      for (let positionX = 990; positionX >= -30; positionX -= 20) context.lineTo(positionX, crest(positionX) + 80 + ribbon * 8);
+      context.closePath(); context.fillStyle = curtain; context.fill();
+      context.beginPath(); context.moveTo(-30, crest(-30));
+      for (let positionX = -10; positionX <= 990; positionX += 20) context.lineTo(positionX, crest(positionX));
+      context.strokeStyle = `${colors[ribbon]}88`; context.lineWidth = 1.6; context.stroke();
+      context.strokeStyle = `${colors[ribbon]}23`; context.lineWidth = 2;
+      for (let fold = 0; fold < 28; fold += 1) {
+        const positionX = fold * 36 + ribbon * 7;
+        const height = crest(positionX);
+        context.beginPath(); context.moveTo(positionX, height + 3);
+        context.quadraticCurveTo(positionX - 12, height + 38, positionX - 5, height + 65); context.stroke();
+      }
+    }
+    // Two matching star trails meet above the terrace, echoing the cooperative scene.
+    const reveal = reduceMotion ? 1 : Math.max(0, Math.min(1, (elapsed - 3) / 2.5));
+    for (let companion = 0; companion < 2; companion += 1) {
+      const direction = companion === 0 ? -1 : 1;
+      for (let star = 0; star < 6; star += 1) {
+        const visibility = Math.min(1, Math.max(0, reveal * 6 - star));
+        const positionX = 480 + direction * (190 - star * 38);
+        const positionY = 185 - Math.sin(star / 5 * Math.PI) * 40;
+        context.globalAlpha = envelope * visibility;
+        if (star > 0) {
+          context.strokeStyle = companion ? '#d9c0ff99' : '#a3ffe099'; context.lineWidth = .8;
+          context.beginPath(); context.moveTo(positionX + direction * 38, 185 - Math.sin((star - 1) / 5 * Math.PI) * 40);
+          context.lineTo(positionX, positionY); context.stroke();
+        }
+        drawGlow(context, positionX, positionY, star === 5 ? 20 : 11, companion ? '#dfbaff66' : '#aaffdf77');
+        context.strokeStyle = '#eeffff'; context.lineWidth = 1;
+        context.beginPath(); context.moveTo(positionX - 3, positionY); context.lineTo(positionX + 3, positionY);
+        context.moveTo(positionX, positionY - 3); context.lineTo(positionX, positionY + 3); context.stroke();
+      }
+    }
+    for (let flake = 0; flake < 32; flake += 1) {
+      const positionX = 45 + flake * 131 % 870 + Math.sin(flake + motionTime * .22) * 9;
+      const positionY = 20 + (flake * 43 + motionTime * 6) % 275;
+      context.globalAlpha = envelope * .45;
+      context.fillStyle = flake % 2 ? '#cdfff1' : '#e5dcff';
+      context.beginPath(); context.arc(positionX, positionY, flake % 4 ? 1 : 1.8, 0, Math.PI * 2); context.fill();
+    }
+    context.restore();
+  }
+
   function drawBackground(context, camera, width, theme) {
+    if (theme === 5) return drawSnowBackground(context, camera, width);
     if (theme === 4) return drawPalaceBackground(context, camera, width);
     if (theme === 3) return drawCastleBackground(context, camera, width);
     if (!images.has(`sky-${theme}`) || !images.has(`hills-${theme}`)) return false;
@@ -431,5 +599,5 @@
     return true;
   }
 
-  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer, drawCastleStone, drawScenicSky, drawScenicTerrace, drawWhaleShow, drawPalaceStone, SCENIC_DURATION, meteorShow };
+  window.StorybookArt = { ready, updateSky, drawImage, drawBackground, drawTree, drawTerrain, drawPlayer, drawCastleStone, drawScenicSky, drawScenicTerrace, drawWhaleShow, drawPalaceStone, drawSnowStone, drawAuroraShow, SCENIC_DURATION, meteorShow };
 })();

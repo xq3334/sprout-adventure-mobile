@@ -15,7 +15,10 @@
       chords: [[38, 45, 53], [34, 41, 50], [31, 38, 46], [33, 40, 49]] },
     palace: { name: '王宫 · 深海回响', beat: .72, voice: 'sine', decay: 2.8, wind: 180,
       melody: [76, null, 83, 78, null, 81, 78, null, 74, null, 81, 78, 76, null, 74, null, 71, 78, null, 83, 81, null, 78, null, 73, null, 80, 83, null, 78, 76, null],
-      chords: [[40, 47, 54], [38, 45, 52], [35, 42, 50], [37, 44, 52]] }
+      chords: [[40, 47, 54], [38, 45, 52], [35, 42, 50], [37, 44, 52]] },
+    snow: { name: '雪山 · 极光双人诗', beat: .84, voice: 'sine', decay: 3.1, wind: 880,
+      melody: [78, null, 85, null, 90, 85, null, 81, 76, null, 83, null, 88, 83, null, null, 73, null, 80, 85, null, 88, 85, null, 74, null, 81, null, 85, 90, 85, null],
+      chords: [[42, 49, 57], [40, 47, 55], [37, 44, 52], [38, 45, 54]] }
   };
 
   class CozyAudio {
@@ -237,7 +240,7 @@
         const pitch = melody[position];
         if (pitch !== null) {
           this.note(pitch, this.nextBeat, decay, .1 * softness, 'music', pitch, voice);
-          if (this.scene === 'castle' || this.scene === 'clouds') {
+          if (this.scene === 'castle' || this.scene === 'clouds' || this.scene === 'snow') {
             this.note(pitch + 19, this.nextBeat + .015, decay * .45, .018 * softness);
           }
         }
@@ -254,7 +257,7 @@
     }
 
     updateEnvironment(world) {
-      if (!['castle', 'palace'].includes(this.scene) || !this.context || this.paused || !this.enabled) return;
+      if (!['castle', 'palace', 'snow'].includes(this.scene) || !this.context || this.paused || !this.enabled) return;
       const player = world.players[0];
       const nearbyJet = world.flameJets.find(jet => Math.abs(jet.x - player.x) < 210 && jet.warning);
       const nearbyFlame = world.flameJets.find(jet => Math.abs(jet.x - player.x) < 150 && jet.active);
@@ -283,7 +286,7 @@
         checkpoint: [[72, 0, .9, .11], [76, .18, .9, .1], [79, .36, 1.2, .09]],
         complete: [[72, 0, 1.2, .12], [76, .22, 1.2, .11], [79, .44, 1.4, .1], [84, .7, 1.8, .08]]
       };
-      if (type === 'scenic') this.scenicUntil = now + 9;
+      if (type === 'scenic') this.scenicUntil = now + (this.scene === 'snow' ? 10 : 9);
       const sceneCues = {
         treehouse: { land: [[48, 0, .09, .08]], interact: [[62, 0, .12, .1], [69, .1, .16, .07]] },
         clouds: { jump: [[74, 0, .35, .09, 86]], land: [[67, 0, .3, .05]], gem: [[86, 0, 1.2, .09], [93, .16, 1.4, .05]] },
@@ -295,6 +298,18 @@
           whale: [[45, 0, 2.6, .085, 52], [57, .5, 2.8, .035, 49]],
           flameWarning: [[76, 0, .18, .05, 83], [76, .24, .18, .04, 83]],
           flame: [[52, 0, .45, .055, 76], [64, .16, .3, .025, 81]]
+        },
+        snow: {
+          jump: [[73, 0, .28, .085, 85], [90, .04, .2, .018]],
+          land: [[49, 0, .12, .065, 42], [78, .02, .16, .022]],
+          gem: [[85, 0, 1.05, .095], [90, .13, 1.35, .065], [97, .27, .9, .025]],
+          interact: [[54, 0, .45, .08], [73, .1, .7, .055], [81, .2, .8, .035]],
+          scenic: [[42, 0, 3.8, .07], [66, .15, 3.3, .06], [78, .4, 3, .075], [85, .8, 3.2, .055], [90, 1.3, 3, .04]],
+          constellation: [[78, 0, 2.5, .065], [81, .25, 2.8, .055], [85, .5, 3, .05], [90, .85, 3.2, .035]],
+          aurora: [[66, 0, 3.3, .055], [78, .2, 3, .06], [85, .55, 3.3, .05], [90, .95, 3.5, .035]],
+          flameWarning: [[85, 0, .17, .045], [90, .22, .2, .035]],
+          flame: [[66, 0, .5, .045, 90], [85, .12, .4, .025, 97]],
+          wings: [[66, 0, .13, .025, 59], [73, .18, .12, .018, 66]]
         },
         castle: { land: [[38, 0, .15, .085], [57, .025, .22, .025]], interact: [[38, 0, .6, .08], [50, .12, .7, .06]], gem: [[81, 0, 1, .09], [86, .15, 1.3, .06]] }
       };
